@@ -69,15 +69,15 @@ owner merges, and the next phase branches from the updated `development`.
 
 | Phase | Title | Gate | Status |
 |-------|-------|------|--------|
-| 0 | Foundation: tooling, CI, coverage & bundle-size gates, mock | ⬜ | ⬜ |
-| 1 | Core domain model & policies | ⬜ | ⬜ |
-| 2 | Durable queue (IndexedDB) | ⬜ | ⬜ |
-| 3 | Transport, envelope & batching | ⬜ | ⬜ |
+| 0 | Foundation: tooling, CI, coverage & bundle-size gates, mock | ✅ | ✅ |
+| 1 | Core domain model & policies | ✅ | ✅ |
+| 2 | Durable queue (IndexedDB) | ✅ | ✅ |
+| 3 | Transport, envelope & batching | ✅ | ✅ |
 | 4 | Browser runtime & sync | ⬜ | ⬜ |
-| 5 | Identity & key handling | ⬜ | ⬜ |
+| 5 | Identity & key handling | ✅ | ✅ |
 | 6 | Network capture (`fetch` + XHR) | ⬜ | ⬜ |
 | 7 | Error & unhandled-rejection capture | ⬜ | ⬜ |
-| 8 | Remote config & kill-switch client | ⬜ | ⬜ |
+| 8 | Remote config & kill-switch client | ✅ | ✅ |
 | 9 | Presence heartbeat | ⬜ | ⬜ |
 | 10 | End-to-end vs mock + coverage/bundle gate | ⬜ | ⬜ |
 | 11 | Real backend integration (staging → production) | ⬜ | ⬜ |
