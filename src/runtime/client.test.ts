@@ -268,3 +268,136 @@ describe('setActiveClient / getActiveClient', () => {
     client = second;
   });
 });
+
+function fakeCapture(): { start: () => void; stop: () => void; startCalls: number; stopCalls: number } {
+  let startCalls = 0;
+  let stopCalls = 0;
+  return {
+    get startCalls() {
+      return startCalls;
+    },
+    get stopCalls() {
+      return stopCalls;
+    },
+    start: () => {
+      startCalls += 1;
+    },
+    stop: () => {
+      stopCalls += 1;
+    },
+  };
+}
+
+describe('CodeskopClient — capture module lifecycle (Phases 6/7/9 integration)', () => {
+  it('starts the network, error, and heartbeat captures on construction', () => {
+    const networkCapture = fakeCapture();
+    const errorCapture = fakeCapture();
+    const heartbeatCapture = fakeCapture();
+    client = new CodeskopClient(config, {
+      installId: 'inst_test',
+      queue: fakeQueue(),
+      fetchTransport: fakeTransport(),
+      beaconTransport: fakeTransport(),
+      configSource: fakeConfigSource(),
+      networkCapture,
+      errorCapture,
+      heartbeatCapture,
+    });
+
+    expect(networkCapture.startCalls).toBe(1);
+    expect(errorCapture.startCalls).toBe(1);
+    expect(heartbeatCapture.startCalls).toBe(1);
+  });
+
+  it('stops every started capture module on dispose', () => {
+    const networkCapture = fakeCapture();
+    const errorCapture = fakeCapture();
+    const heartbeatCapture = fakeCapture();
+    client = new CodeskopClient(config, {
+      installId: 'inst_test',
+      queue: fakeQueue(),
+      fetchTransport: fakeTransport(),
+      beaconTransport: fakeTransport(),
+      configSource: fakeConfigSource(),
+      networkCapture,
+      errorCapture,
+      heartbeatCapture,
+    });
+
+    client.dispose();
+
+    expect(networkCapture.stopCalls).toBe(1);
+    expect(errorCapture.stopCalls).toBe(1);
+    expect(heartbeatCapture.stopCalls).toBe(1);
+    client = undefined;
+  });
+
+  it('a config-supplied override is never even constructed/started when captureNetwork is false', () => {
+    const networkCapture = fakeCapture();
+    const errorCapture = fakeCapture();
+    const heartbeatCapture = fakeCapture();
+    client = new CodeskopClient(
+      { ...config, captureNetwork: false },
+      {
+        installId: 'inst_test',
+        queue: fakeQueue(),
+        fetchTransport: fakeTransport(),
+        beaconTransport: fakeTransport(),
+        configSource: fakeConfigSource(),
+        networkCapture,
+        errorCapture,
+        heartbeatCapture,
+      },
+    );
+
+    expect(networkCapture.startCalls).toBe(0);
+    expect(errorCapture.startCalls).toBe(1);
+    expect(heartbeatCapture.startCalls).toBe(1);
+  });
+
+  it('a config-supplied override is never even constructed/started when captureErrors is false', () => {
+    const networkCapture = fakeCapture();
+    const errorCapture = fakeCapture();
+    const heartbeatCapture = fakeCapture();
+    client = new CodeskopClient(
+      { ...config, captureErrors: false },
+      {
+        installId: 'inst_test',
+        queue: fakeQueue(),
+        fetchTransport: fakeTransport(),
+        beaconTransport: fakeTransport(),
+        configSource: fakeConfigSource(),
+        networkCapture,
+        errorCapture,
+        heartbeatCapture,
+      },
+    );
+
+    expect(networkCapture.startCalls).toBe(1);
+    expect(errorCapture.startCalls).toBe(0);
+    expect(heartbeatCapture.startCalls).toBe(1);
+  });
+
+  it('always starts the heartbeat capture regardless of captureNetwork/captureErrors', () => {
+    const networkCapture = fakeCapture();
+    const errorCapture = fakeCapture();
+    const heartbeatCapture = fakeCapture();
+    client = new CodeskopClient(
+      { ...config, captureNetwork: false, captureErrors: false },
+      {
+        installId: 'inst_test',
+        queue: fakeQueue(),
+        fetchTransport: fakeTransport(),
+        beaconTransport: fakeTransport(),
+        configSource: fakeConfigSource(),
+        networkCapture,
+        errorCapture,
+        heartbeatCapture,
+      },
+    );
+
+    expect(networkCapture.startCalls).toBe(0);
+    expect(errorCapture.startCalls).toBe(0);
+    expect(heartbeatCapture.startCalls).toBe(1);
+  });
+});

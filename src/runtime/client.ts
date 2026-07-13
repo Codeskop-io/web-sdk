@@ -1,10 +1,13 @@
 /**
- * `CodeskopClient` — wires the durable queue, transport, remote config, and
- * identity modules into one guarded runtime (`docs/02` §2.1/§2.3,
- * `web-sdk-workflow.md` Phase 4). `emitEvent` is the single seam every future
- * capture module (network, error, heartbeat — Phases 6/7/9) enqueues an
- * event through; nothing else here is meant to be called from outside the
- * runtime and `facade.ts`.
+ * `CodeskopClient` — wires the durable queue, transport, remote config,
+ * identity, and capture modules into one guarded runtime (`docs/02`
+ * §2.1/§2.3, `web-sdk-workflow.md` Phases 4/6/7/9). `emitEvent` is the single
+ * seam every capture module (network, error, heartbeat) enqueues an event
+ * through; the client owns constructing/`start()`ing those three modules
+ * against that same seam and `stop()`ping them in `dispose`, so exactly one
+ * live set of patches/listeners/timers exists per active client — mirrors
+ * `setActiveClient`'s "dispose the old one first" guarantee. Nothing else
+ * here is meant to be called from outside the runtime and `facade.ts`.
  */
 import type {
   CodeskopConfig,
@@ -26,7 +29,16 @@ import { resolveInstallId } from '../core/installId.js';
 import { DurableQueue } from '../queue/index.js';
 import { BeaconTransport, buildBatches, FetchTransport, type BuildBatchesContext } from '../transport/index.js';
 import { FeatureGate, RemoteConfigClient } from '../config/index.js';
+import { ErrorCapture } from '../capture/errors.js';
+import { HeartbeatCapture } from '../capture/heartbeat.js';
+import { NetworkCapture } from '../capture/network.js';
 import { SyncScheduler } from './syncScheduler.js';
+
+/** The `start()`/`stop()` shape shared by every capture module — enough surface for this client to own their lifecycle and for tests to inject a fake. */
+interface StartStoppable {
+  start(): void;
+  stop(): void;
+}
 
 const DEFAULT_ENDPOINT = 'https://api.codeskop.com';
 
@@ -60,6 +72,12 @@ export interface CodeskopClientOptions {
   configSource?: ConfigSource;
   scheduler?: SyncScheduler;
   installId?: string;
+  /** Overrides the real `NetworkCapture` this client would otherwise construct (`CodeskopConfig.captureNetwork` permitting). */
+  networkCapture?: StartStoppable;
+  /** Overrides the real `ErrorCapture` this client would otherwise construct (`CodeskopConfig.captureErrors` permitting). */
+  errorCapture?: StartStoppable;
+  /** Overrides the real `HeartbeatCapture` this client would otherwise construct. */
+  heartbeatCapture?: StartStoppable;
 }
 
 export class CodeskopClient {
@@ -73,6 +91,9 @@ export class CodeskopClient {
   private readonly configSource: ConfigSource;
   private readonly scheduler: SyncScheduler;
   private readonly batchContext: BuildBatchesContext;
+  private readonly networkCapture: StartStoppable | undefined;
+  private readonly errorCapture: StartStoppable | undefined;
+  private readonly heartbeatCapture: StartStoppable;
   private draining = false;
 
   constructor(config: CodeskopConfig, options: CodeskopClientOptions = {}) {
@@ -115,9 +136,23 @@ export class CodeskopClient {
         },
       });
 
+    // `emitEvent`'s field initializer has already run by this point (base-class
+    // field initializers run before the constructor body), so it's safe to hand
+    // this bound seam to the capture modules constructed here.
+    this.networkCapture =
+      config.captureNetwork === false
+        ? undefined
+        : options.networkCapture ??
+          new NetworkCapture({ endpoint, redactHeaderNames: config.redactHeaders, emit: this.emitEvent });
+    this.errorCapture = config.captureErrors === false ? undefined : options.errorCapture ?? new ErrorCapture();
+    this.heartbeatCapture = options.heartbeatCapture ?? new HeartbeatCapture({ emit: this.emitEvent });
+
     // Freshly constructed: `uninitialized -> enabled` is always legal.
     this.state.tryTransition('enabled');
     this.scheduler.start();
+    this.networkCapture?.start();
+    this.errorCapture?.start();
+    this.heartbeatCapture.start();
     this.refreshRemoteConfig();
   }
 
@@ -143,9 +178,12 @@ export class CodeskopClient {
     { context: 'client.emitEvent' },
   );
 
-  /** Tears down timers/listeners. Exposed for tests and for `facade.ts` replacing this instance on a later `init()`. */
+  /** Tears down timers/listeners — the scheduler and every started capture module. Exposed for tests and for `facade.ts` replacing this instance on a later `init()`. */
   readonly dispose = safely((): void => {
     this.scheduler.stop();
+    this.networkCapture?.stop();
+    this.errorCapture?.stop();
+    this.heartbeatCapture.stop();
   }, { context: 'client.dispose' });
 
   /** Diagnostics-only: the current durable-queue depth. Not part of the public API (`docs/05`). */

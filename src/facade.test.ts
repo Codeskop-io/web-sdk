@@ -44,4 +44,28 @@ describe('init', () => {
     expect(disposeSpy).toHaveBeenCalledTimes(1);
     expect(getActiveClient()).not.toBe(first);
   });
+
+  it('disposes the previous client before constructing the next, so network/error patches never nest', () => {
+    // Each `init()` constructs a real `NetworkCapture` that patches
+    // `window.fetch`, saving whatever was there as "the original" to hand
+    // back on `stop()`. If the previous client were disposed *after* the
+    // next one is constructed, the second patch would nest on top of the
+    // first, and disposing the first would restore to *its* pre-patch
+    // fetch — unwinding the second client's patch and leaving it silently
+    // un-instrumented. Asserting three *different* function identities
+    // (pristine → patch 1 → patch 2) and a clean return to pristine on
+    // final teardown proves patches are always applied one at a time.
+    const pristineFetch = window.fetch;
+
+    init({ apiKey: 'cs_test_pk_first', endpoint: TEST_ENDPOINT });
+    const firstPatchedFetch = window.fetch;
+    expect(firstPatchedFetch).not.toBe(pristineFetch);
+
+    init({ apiKey: 'cs_test_pk_second', endpoint: TEST_ENDPOINT });
+    const secondPatchedFetch = window.fetch;
+    expect(secondPatchedFetch).not.toBe(firstPatchedFetch);
+
+    setActiveClient(undefined);
+    expect(window.fetch).toBe(pristineFetch);
+  });
 });

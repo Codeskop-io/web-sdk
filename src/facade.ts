@@ -24,13 +24,23 @@ import { CodeskopClient, setActiveClient } from './runtime/client.js';
  * previously active client (if any) and starts a fresh one. A non-public key
  * (`cs_*_sk_…` or malformed) disables the SDK fail-soft (`docs/04` §4.2)
  * rather than throwing.
+ *
+ * The previously active client is disposed *before* the new one is
+ * constructed, never after: `CodeskopClient` now owns real `NetworkCapture`/
+ * `ErrorCapture` instances that monkey-patch `window.fetch`/`XMLHttpRequest`,
+ * saving a single "original" to restore on `stop()`. Constructing a new
+ * client while the old one is still active would patch on top of the old
+ * client's patch; disposing the old client *afterwards* would then restore
+ * to what *it* remembers as original, silently unwinding the new client's
+ * patch too and leaving network capture dark until the next `init()`.
+ * Disposing first means every `start()` always patches a pristine global.
  */
 export const init = safely((config: CodeskopConfig): void => {
   const validation = validateApiKey(config.apiKey);
+  setActiveClient(undefined);
   if (!validation.valid) {
     // Fail-soft: no active client means every future capture-module call
     // into `getActiveClient()` is a safe no-op (`docs/05` §5.4).
-    setActiveClient(undefined);
     return;
   }
   setActiveClient(new CodeskopClient(config));
