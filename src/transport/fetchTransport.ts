@@ -57,7 +57,12 @@ export class FetchTransport implements Transport {
   constructor(options: FetchTransportOptions) {
     this.url = `${options.endpoint.replace(/\/$/, '')}${EVENTS_PATH}`;
     this.apiKey = options.apiKey;
-    this.fetchImpl = options.fetchImpl ?? (globalThis.fetch as unknown as FetchLike);
+    // `.bind(globalThis)`: real browsers (unlike jsdom/Node) throw `TypeError:
+    // Illegal invocation` if the bare `fetch` reference is extracted and
+    // later called detached from its `window` receiver — exactly what
+    // storing `globalThis.fetch` itself and calling `this.fetchImpl(...)`
+    // would do.
+    this.fetchImpl = options.fetchImpl ?? (globalThis.fetch?.bind(globalThis) as unknown as FetchLike);
     this.maxRetries = options.maxRetries ?? 3;
     this.backoffOptions = options.backoff ?? {};
     this.delay = options.delay ?? defaultDelay;

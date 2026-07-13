@@ -69,7 +69,12 @@ export class BeaconTransport implements Transport {
     this.endpoint = options.endpoint.replace(/\/$/, '');
     this.apiKey = options.apiKey;
     this.sendBeaconImpl = options.sendBeaconImpl ?? globalSendBeacon();
-    this.fetchImpl = options.fetchImpl ?? (globalThis.fetch as unknown as FetchLike);
+    // `.bind(globalThis)` for the same reason `globalSendBeacon()` binds to
+    // `navigator` above: a bare `fetch` reference called detached from its
+    // `window` receiver throws `TypeError: Illegal invocation` in real
+    // browsers (jsdom/Node don't enforce this, so it's easy to miss without
+    // a real-browser test).
+    this.fetchImpl = options.fetchImpl ?? (globalThis.fetch?.bind(globalThis) as unknown as FetchLike);
   }
 
   /**

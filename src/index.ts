@@ -1,9 +1,12 @@
 /**
  * `@codeskop/tracker` public entry point.
  *
- * Phase 0 exports only the wire-contract and seam types other work streams build
- * against; `init`/`identify`/etc. land in later phases (`docs/05-api-reference.md`).
+ * `init` lands in Phase 4 (`web-sdk-workflow.md`, `docs/05-api-reference.md` §5.1);
+ * `identify`/`reset`/`recordException`/`setEnabled`/`flush` land once the capture
+ * modules that need them exist (Phase 5+).
  */
+export { init } from './facade.js';
+
 export type {
   EventType,
   Severity,

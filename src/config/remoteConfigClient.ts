@@ -59,7 +59,12 @@ export class RemoteConfigClient implements ConfigSource {
   constructor(options: RemoteConfigClientOptions) {
     this.endpoint = options.endpoint.replace(/\/+$/, '');
     this.apiKey = options.apiKey;
-    this.fetchImpl = options.fetchImpl ?? (globalThis.fetch as FetchLike | undefined);
+    // `.bind(globalThis)`: real browsers (unlike jsdom/Node) throw `TypeError:
+    // Illegal invocation` if the bare `fetch` reference is extracted and
+    // later called detached from its `window` receiver — exactly what
+    // storing `globalThis.fetch` itself and calling `this.fetchImpl(...)`
+    // would do.
+    this.fetchImpl = options.fetchImpl ?? (globalThis.fetch?.bind(globalThis) as FetchLike | undefined);
     this.storage = options.storage ?? resolveDefaultStorage();
     this.onError = options.onError ?? (() => {});
     this.lastKnownGood = readCachedConfig(this.storage);
