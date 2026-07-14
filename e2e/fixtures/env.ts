@@ -74,6 +74,34 @@ export async function startMockIngestServer(): Promise<MockIngestServer> {
   };
 }
 
+/** One accepted `POST /v1/events` envelope, as recorded by `server.py`'s `RECEIVED` and served back via `/__debug/received` (Phase 10's introspection seam — read from the file rather than guessed). */
+export interface MockReceivedBatch {
+  received_at: string;
+  context: { device?: Record<string, unknown>; app?: Record<string, unknown> } | null;
+  batch: Array<Record<string, unknown>>;
+  rejected: string[];
+  package: string | null;
+  cert_sha256: string | null;
+}
+
+/** Fetches every envelope the mock has accepted so far, oldest first — talks directly to the mock (not through the app server's same-origin proxy), since this is Node-side test introspection, not a page request. */
+export async function fetchMockReceivedBatches(mockUrl: string): Promise<MockReceivedBatch[]> {
+  const response = await fetch(`${mockUrl}/__debug/received`);
+  const body = (await response.json()) as { batches: MockReceivedBatch[] };
+  return body.batches;
+}
+
+/** Flattens every accepted batch's events into one array — for assertions that don't care about batch boundaries. */
+export async function fetchMockReceivedEvents(mockUrl: string): Promise<Array<Record<string, unknown>>> {
+  const batches = await fetchMockReceivedBatches(mockUrl);
+  return batches.flatMap((entry) => entry.batch);
+}
+
+/** Clears the mock's `/__debug/received` state so tests sharing one long-lived server process can isolate themselves. */
+export async function resetMockReceivedBatches(mockUrl: string): Promise<void> {
+  await fetch(`${mockUrl}/__debug/reset`, { method: 'POST' });
+}
+
 function proxyToMock(req: http.IncomingMessage, res: http.ServerResponse, mockUrl: string): void {
   const target = new URL(req.url ?? '/', mockUrl);
   const upstream = http.request(
@@ -94,6 +122,43 @@ function proxyToMock(req: http.IncomingMessage, res: http.ServerResponse, mockUr
     res.end();
   });
   req.pipe(upstream);
+}
+
+export interface FailingApiServer {
+  url: string;
+  close(): Promise<void>;
+}
+
+/**
+ * A tiny standalone, always-500 endpoint, deliberately on its **own** origin
+ * (`web-sdk-workflow.md` Phase 10's "a fetch call that 4xx/5xxs"). It cannot
+ * share a host with the app server: `capture/network.ts`'s self-ingest
+ * exclusion is host-based (never instrument calls to the configured ingest
+ * endpoint's host), and the app server's host *is* the configured endpoint
+ * (its `/v1/events`/`/v1/config` proxy) in every fixture that points the SDK
+ * at `app.url` — a same-host "boom" route would be silently excluded too.
+ * CORS is wide open so the page's real `fetch` reads the actual `500`
+ * rather than an opaque cross-origin network error.
+ */
+export async function startFailingApiServer(): Promise<FailingApiServer> {
+  const server = http.createServer((_req, res) => {
+    res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ error: 'boom' }));
+  });
+
+  const port = await new Promise<number>((resolve, reject) => {
+    server.on('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      if (address && typeof address === 'object') resolve(address.port);
+      else reject(new Error('could not allocate a free port for the failing API server'));
+    });
+  });
+
+  return {
+    url: `http://127.0.0.1:${port}`,
+    close: () => new Promise((resolve) => server.close(() => resolve())),
+  };
 }
 
 export interface AppServer {

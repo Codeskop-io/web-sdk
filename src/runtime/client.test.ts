@@ -127,6 +127,135 @@ describe('CodeskopClient — emitEvent', () => {
   });
 });
 
+describe('CodeskopClient — setEnabled (local pause/resume)', () => {
+  it('is a no-op independent of, and does not touch, the remote kill-switch state', async () => {
+    const queue = fakeQueue();
+    client = new CodeskopClient(config, {
+      installId: 'inst_test',
+      queue,
+      fetchTransport: fakeTransport(),
+      beaconTransport: fakeTransport(),
+      configSource: fakeConfigSource(),
+    });
+    await vi.waitFor(() => expect(client?.isActive()).toBe(true));
+
+    client.setEnabled(false);
+    client.emitEvent({ type: 'heartbeat', severity: 'low', payload: { session_id: 's', visible: true } });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(queue.events).toHaveLength(0);
+    expect(client.isActive()).toBe(false);
+
+    client.setEnabled(true);
+    expect(client.isActive()).toBe(true);
+    client.emitEvent({ type: 'heartbeat', severity: 'low', payload: { session_id: 's', visible: true } });
+    await vi.waitFor(() => expect(queue.events).toHaveLength(1));
+  });
+
+  it('leaves a tripped kill-switch tripped even after setEnabled(true)', async () => {
+    const queue = fakeQueue();
+    client = new CodeskopClient(config, {
+      installId: 'inst_test',
+      queue,
+      fetchTransport: fakeTransport(),
+      beaconTransport: fakeTransport(),
+      configSource: fakeConfigSource({ ...DEFAULT_REMOTE_CONFIG, enabled: false }),
+    });
+    await vi.waitFor(() => expect(client?.isActive()).toBe(false));
+
+    client.setEnabled(true);
+    client.emitEvent({ type: 'heartbeat', severity: 'low', payload: { session_id: 's', visible: true } });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(queue.events).toHaveLength(0);
+    expect(client.isActive()).toBe(false);
+  });
+});
+
+describe('CodeskopClient — identify / reset', () => {
+  it('attributes subsequent events to the identified user, then back to anonymous after reset', async () => {
+    const queue = fakeQueue();
+    client = new CodeskopClient(config, {
+      installId: 'inst_test',
+      queue,
+      fetchTransport: fakeTransport(),
+      beaconTransport: fakeTransport(),
+      configSource: fakeConfigSource(),
+    });
+
+    client.identify('user_42', { plan: 'pro' });
+    client.emitEvent({ type: 'heartbeat', severity: 'low', payload: { session_id: 's1', visible: true } });
+    await vi.waitFor(() => expect(queue.events).toHaveLength(1));
+    expect(queue.events[0]?.user).toEqual({ id: 'user_42', is_anonymous: false });
+
+    client.reset();
+    client.emitEvent({ type: 'heartbeat', severity: 'low', payload: { session_id: 's2', visible: true } });
+    await vi.waitFor(() => expect(queue.events).toHaveLength(2));
+    expect(queue.events[1]?.user).toEqual({ id: 'inst_test', is_anonymous: true });
+  });
+});
+
+describe('CodeskopClient — flush', () => {
+  it('resolves true and drains the queue via the fetch transport (never beacon)', async () => {
+    const queue = fakeQueue([heartbeatEvent('e1')]);
+    const fetchTransport = fakeTransport();
+    const beaconTransport = fakeTransport();
+    client = new CodeskopClient(config, {
+      installId: 'inst_test',
+      queue,
+      fetchTransport,
+      beaconTransport,
+      configSource: fakeConfigSource(),
+    });
+
+    await expect(client.flush()).resolves.toBe(true);
+    expect(fetchTransport.calls).toBe(1);
+    expect(beaconTransport.calls).toBe(0);
+    expect(queue.events).toHaveLength(0);
+  });
+
+  it('resolves false when a drain is already in flight', async () => {
+    let resolveSend: (() => void) | undefined;
+    const slowTransport: Transport = {
+      send: () =>
+        new Promise((resolve) => {
+          resolveSend = () => resolve({ ok: true, retryable: false });
+        }),
+    };
+    const queue = fakeQueue([heartbeatEvent('e1')]);
+    client = new CodeskopClient(config, {
+      installId: 'inst_test',
+      queue,
+      fetchTransport: slowTransport,
+      beaconTransport: fakeTransport(),
+      configSource: fakeConfigSource(),
+    });
+
+    const first = client.flush();
+    const second = client.flush();
+
+    await expect(second).resolves.toBe(false);
+    resolveSend?.();
+    await expect(first).resolves.toBe(true);
+  });
+
+  it('still resolves true (an attempt ran) even if the drain throws internally', async () => {
+    const queue: QueueLike = {
+      enqueue: async () => {},
+      peekBatch: () => Promise.reject(new Error('boom')),
+      ack: async () => {},
+      size: async () => 0,
+    };
+    client = new CodeskopClient(config, {
+      installId: 'inst_test',
+      queue,
+      fetchTransport: fakeTransport(),
+      beaconTransport: fakeTransport(),
+      configSource: fakeConfigSource(),
+    });
+
+    await expect(client.flush()).resolves.toBe(true);
+  });
+});
+
 describe('CodeskopClient — sync triggers', () => {
   it('reaching the batch-size threshold drains via the fetch transport', async () => {
     const seed = Array.from({ length: BATCH_SIZE_TRIGGER - 1 }, (_, i) => heartbeatEvent(`seed-${i}`));

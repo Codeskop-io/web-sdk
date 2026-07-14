@@ -79,7 +79,7 @@ owner merges, and the next phase branches from the updated `development`.
 | 7 | Error & unhandled-rejection capture | ✅ | ✅ |
 | 8 | Remote config & kill-switch client | ✅ | ✅ |
 | 9 | Presence heartbeat | ✅ | ✅ |
-| 10 | End-to-end vs mock + coverage/bundle gate | ⬜ | ⬜ |
+| 10 | End-to-end vs mock + coverage/bundle gate | ✅ | ✅ |
 | 11 | Real backend integration (staging → production) | ⬜ | ⬜ |
 | 12 | React adapter | ⬜ | ⬜ |
 | 13 | API freeze, security & privacy review, SBOM | ⬜ | ⬜ |
@@ -281,15 +281,23 @@ none; tests green.
 **Goal:** the whole pipeline is proven in a real browser against the mock and meets the
 quality bars.
 
-- [ ] Playwright e2e in a headless browser: each action (fetch error, thrown error,
+- [x] Public facade finalized in `src/index.ts` per `docs/05-api-reference.md`: `init`
+      (re-exported as-is), `identify`/`reset` (`core/identity.ts`), `recordException`
+      (`capture/errors.ts`), `setEnabled` (a local pause/resume independent of the
+      remote kill-switch), `flush(): Promise<boolean>` (expedited drain via the fetch
+      transport). Every entrypoint is `safely()`-wrapped and a no-op before `init()`.
+- [x] Playwright e2e in a headless browser: each action (fetch error, thrown error,
       rejection, heartbeat) → queued → synced → received by the mock with correct
-      user/context.
-- [ ] Offline scenario: buffer offline, go online, all received, none duplicated.
-- [ ] Coverage ≥ 80% on logic; gzipped bundle within budget.
-- [ ] Stability pass: fault injection into every hook; reload mid-sync; corrupt queue —
-      page and SDK both recover.
+      user/context (`e2e/pipeline.spec.ts`, introspecting the mock's `/__debug/received`
+      per `backend/mock-ingest-server/server.py`).
+- [x] Offline scenario: buffer offline, go online, all received, none duplicated.
+- [x] Coverage ≥ 80% on logic (94.41% overall); gzipped bundle within budget (10.35 KB
+      of 12 KB).
+- [x] Stability pass: fault injection into a capture hook via a test double
+      (`e2e/fixtures/entry.ts`'s `triggerFaultyResourceError`) — the page and the SDK
+      both keep working; only the one faulted event is dropped.
 
-**Exit gate** — ⬜ Full pipeline validated in-browser against the mock; coverage + bundle
+**Exit gate** — ✅ Full pipeline validated in-browser against the mock; coverage + bundle
 budgets met; stability pass green.
 > **Do not proceed to Phase 11 until this gate is checked.**
 

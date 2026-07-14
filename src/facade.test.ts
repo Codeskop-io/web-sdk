@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { init } from './facade.js';
+import { flush, identify, init, reset, setEnabled } from './facade.js';
 import { getActiveClient, setActiveClient } from './runtime/client.js';
 
 // A reserved/unassigned port (connection refused near-instantly) — the same
@@ -67,5 +67,63 @@ describe('init', () => {
 
     setActiveClient(undefined);
     expect(window.fetch).toBe(pristineFetch);
+  });
+});
+
+describe('identify / reset — safe no-ops before init()', () => {
+  it('never throws and delegates to nothing when there is no active client', () => {
+    expect(() => identify('user_1', { plan: 'pro' })).not.toThrow();
+    expect(() => reset()).not.toThrow();
+  });
+
+  it('delegates to the active client once initialized', () => {
+    init({ apiKey: 'cs_test_pk_identify', endpoint: TEST_ENDPOINT });
+    const client = getActiveClient();
+    const identifySpy = client ? vi.spyOn(client, 'identify') : undefined;
+    const resetSpy = client ? vi.spyOn(client, 'reset') : undefined;
+
+    identify('user_1', { plan: 'pro' });
+    reset();
+
+    expect(identifySpy).toHaveBeenCalledWith('user_1', { plan: 'pro' });
+    expect(resetSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('setEnabled — safe no-op before init()', () => {
+  it('never throws when there is no active client', () => {
+    expect(() => setEnabled(false)).not.toThrow();
+  });
+
+  it('delegates to the active client once initialized', () => {
+    init({ apiKey: 'cs_test_pk_set_enabled', endpoint: TEST_ENDPOINT });
+    const client = getActiveClient();
+    const setEnabledSpy = client ? vi.spyOn(client, 'setEnabled') : undefined;
+
+    setEnabled(false);
+
+    expect(setEnabledSpy).toHaveBeenCalledWith(false);
+  });
+});
+
+describe('flush — safe no-op before init()', () => {
+  it('resolves false when there is no active client', async () => {
+    await expect(flush()).resolves.toBe(false);
+  });
+
+  it('resolves true once a sync attempt actually runs against the active client', async () => {
+    init({ apiKey: 'cs_test_pk_flush', endpoint: TEST_ENDPOINT });
+    const client = getActiveClient();
+    vi.spyOn(client!, 'flush').mockResolvedValue(true);
+
+    await expect(flush()).resolves.toBe(true);
+  });
+
+  it('never rejects even if the underlying client throws', async () => {
+    init({ apiKey: 'cs_test_pk_flush_throws', endpoint: TEST_ENDPOINT });
+    const client = getActiveClient();
+    vi.spyOn(client!, 'flush').mockRejectedValue(new Error('boom'));
+
+    await expect(flush()).resolves.toBe(false);
   });
 });

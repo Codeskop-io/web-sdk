@@ -17,14 +17,11 @@
  */
 import { expect, test } from '@playwright/test';
 import { startAppServer, startMockIngestServer, type AppServer, type MockIngestServer } from './fixtures/env.js';
+import type { CodeskopTestHarness } from './fixtures/entry.js';
 
 declare global {
   interface Window {
-    __codeskop_test__: {
-      init: (config: { apiKey: string; endpoint?: string }) => void;
-      emit: (severity: 'low' | 'medium' | 'high' | 'critical') => void;
-      queueSize: () => Promise<number>;
-    };
+    __codeskop_test__: CodeskopTestHarness;
   }
 }
 

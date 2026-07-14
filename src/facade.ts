@@ -1,8 +1,12 @@
 /**
- * The public facade (`docs/05-api-reference.md` §5.1): `init` is the only
- * method this phase exposes. `identify`/`reset`/`recordException`/
- * `setEnabled`/`flush` land once the capture modules that need them exist
- * (`web-sdk-workflow.md` Phase 5+).
+ * The public facade (`docs/05-api-reference.md`, Phase 10's finalization):
+ * `init`, `identify`/`reset`, `recordException` (re-exported as-is from
+ * `capture/errors.ts`), `setEnabled`, and `flush` — the complete public
+ * surface `src/index.ts` re-exports. Every entrypoint here shares the same
+ * two guarantees (`docs/05` §5.4): it is wrapped in `safely()` so it can
+ * never throw into the host page, and it is a safe no-op before `init()` —
+ * `getActiveClient()` is `undefined` until then, and every call below treats
+ * that the same way the capture modules already do.
  *
  * This module also runs the lightweight auto-init (`docs/06` §6.5): if the
  * SDK's own `<script>` tag carries a `data-codeskop-key` attribute, `init`
@@ -15,7 +19,7 @@ import type { CodeskopConfig } from './model/types.js';
 import { safely } from './core/safely.js';
 import { validateApiKey } from './core/identity.js';
 import { readScriptConfig } from './core/scriptConfig.js';
-import { CodeskopClient, setActiveClient } from './runtime/client.js';
+import { CodeskopClient, getActiveClient, setActiveClient } from './runtime/client.js';
 
 /**
  * Initializes the SDK. Returns immediately — key validation is synchronous
@@ -59,3 +63,49 @@ const autoInit = safely((): void => {
 }, { context: 'auto-init' });
 
 autoInit();
+
+/**
+ * Associates subsequent events with a stable logical user (`docs/05` §5.3).
+ * A safe no-op before `init()` — there is no active client to delegate to
+ * yet, so there is nothing to identify.
+ */
+export const identify = safely((userId: string, traits?: Record<string, unknown>): void => {
+  getActiveClient()?.identify(userId, traits);
+}, { context: 'identify' });
+
+/**
+ * Clears the current user (`docs/05` §5.3), e.g. on logout. The install ID
+ * persists. A safe no-op before `init()`.
+ */
+export const reset = safely((): void => {
+  getActiveClient()?.reset();
+}, { context: 'reset' });
+
+/**
+ * Local pause/resume of capture (`docs/05` §5.3), independent of the remote
+ * kill-switch (`config/featureGate.ts`, Phase 8): either being "off" disables
+ * capture. A safe no-op before `init()` — there is no active client to pause
+ * or resume yet, so the call is simply dropped (the *next* `init()` always
+ * starts a fresh client back at fully enabled, not whatever `setEnabled` was
+ * last called with).
+ */
+export const setEnabled = safely((enabled: boolean): void => {
+  getActiveClient()?.setEnabled(enabled);
+}, { context: 'setEnabled' });
+
+/** The `safely()`-guarded core of `flush()`; kept separate so the exported function can normalize `undefined` (no active client, or a swallowed fault) down to `false` and keep its documented `Promise<boolean>` signature exact rather than `Promise<boolean | undefined>`. */
+const guardedFlush = safely(async (): Promise<boolean> => {
+  const client = getActiveClient();
+  if (!client) return false;
+  return client.flush();
+}, { context: 'flush' });
+
+/**
+ * Best-effort expedited drain of the queue (`docs/05` §5.3). Resolves `true`
+ * only if a sync attempt actually ran — `false` before `init()`, if one was
+ * already in flight, or if the guard swallowed an unexpected fault. Never
+ * throws and never rejects.
+ */
+export function flush(): Promise<boolean> {
+  return guardedFlush().then((result) => result ?? false);
+}

@@ -6,7 +6,7 @@
  * server. Not part of the published package — this file only exists under
  * `e2e/`.
  */
-import { init } from '../../src/index.js';
+import { flush, identify, init, recordException, reset, setEnabled } from '../../src/index.js';
 import { getActiveClient } from '../../src/runtime/client.js';
 import type { CodeskopConfig, Severity } from '../../src/model/types.js';
 
@@ -16,6 +16,14 @@ export interface CodeskopTestHarness {
   emit: (severity: Severity) => void;
   /** The durable queue's current depth — proves an event survived (or didn't survive) a reload. */
   queueSize: () => Promise<number>;
+  /** The full public facade (`docs/05-api-reference.md`), finalized in Phase 10, for the e2e pipeline suite. */
+  identify: (userId: string, traits?: Record<string, unknown>) => void;
+  reset: () => void;
+  recordException: (error: unknown, attributes?: Record<string, unknown>) => void;
+  setEnabled: (enabled: boolean) => void;
+  flush: () => Promise<boolean>;
+  /** Fires a genuine resource-load failure (a broken `<img>`) whose `target.tagName` getter has been overridden to throw — the Phase 10 stability pass's "test double" fault, injected into a real `ErrorCapture` hook rather than simulated. */
+  triggerFaultyResourceError: () => void;
 }
 
 const harness: CodeskopTestHarness = {
@@ -30,6 +38,26 @@ const harness: CodeskopTestHarness = {
   queueSize: async () => {
     const client = getActiveClient();
     return client ? client.queueSize() : 0;
+  },
+  identify,
+  reset,
+  recordException,
+  setEnabled,
+  flush,
+  triggerFaultyResourceError: () => {
+    const img = document.createElement('img');
+    // Shadows the inherited `Element.prototype.tagName` getter on this one
+    // instance only — `capture/errors.ts`'s `resourceErrorPayload` reads
+    // `target.tagName` while building the event, so this throws *inside*
+    // that real hook the moment the `error` event fires, without touching
+    // any other element on the page.
+    Object.defineProperty(img, 'tagName', {
+      get(): string {
+        throw new Error('injected fault: tagName getter');
+      },
+    });
+    img.src = '/no-such-image-e2e.png';
+    document.body.appendChild(img);
   },
 };
 

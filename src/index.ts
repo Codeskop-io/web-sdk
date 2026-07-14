@@ -1,11 +1,12 @@
 /**
- * `@codeskop/tracker` public entry point.
- *
- * `init` lands in Phase 4 (`web-sdk-workflow.md`, `docs/05-api-reference.md` §5.1);
- * `identify`/`reset`/`recordException`/`setEnabled`/`flush` land once the capture
- * modules that need them exist (Phase 5+).
+ * `@codeskop/tracker` public entry point (`docs/05-api-reference.md`,
+ * finalized in `web-sdk-workflow.md` Phase 10). Every export below is a safe
+ * no-op before `init()` and never throws into the host page (`docs/05`
+ * §5.4) — see `facade.ts` for `init`/`identify`/`reset`/`setEnabled`/`flush`
+ * and `capture/errors.ts` for `recordException`.
  */
-export { init } from './facade.js';
+export { init, identify, reset, setEnabled, flush } from './facade.js';
+export { recordException } from './capture/errors.js';
 
 export type {
   EventType,

@@ -95,6 +95,17 @@ export class CodeskopClient {
   private readonly errorCapture: StartStoppable | undefined;
   private readonly heartbeatCapture: StartStoppable;
   private draining = false;
+  /**
+   * The `setEnabled()` local pause/resume (`docs/05` §5.3), deliberately kept
+   * separate from `ClientStateMachine`'s `enabled`/`disabled` states: those
+   * model the remote kill-switch and terminal `killed` faults
+   * (`core/state.ts`), and re-`tryTransition('enabled')`-ing out of a
+   * kill-switch trip would be a bug, not a feature. This flag is a second,
+   * independent gate `emitEvent` checks alongside the state machine — either
+   * being "off" disables capture, and each can be flipped without touching
+   * the other.
+   */
+  private localEnabled = true;
 
   constructor(config: CodeskopConfig, options: CodeskopClientOptions = {}) {
     this.onDiagnostic = options.onDiagnostic ?? (() => {});
@@ -159,7 +170,7 @@ export class CodeskopClient {
   /** The single seam every capture module enqueues an event through. Never throws; a no-op unless `enabled`. */
   readonly emitEvent = safely(
     (input: EmitEventInput): void => {
-      if (!this.state.isEnabled() || this.featureGate.isKillSwitched()) return;
+      if (!this.localEnabled || !this.state.isEnabled() || this.featureGate.isKillSwitched()) return;
 
       const event: CodeskopEvent = {
         event_id: generateEventId(systemClock),
@@ -191,9 +202,57 @@ export class CodeskopClient {
     return this.queue.size();
   }
 
-  /** Diagnostics-only: `true` while capture is active (`enabled` and not remote-kill-switched). Not part of the public API. */
+  /** Diagnostics-only: `true` while capture is active (`enabled`, not remote-kill-switched, and not locally paused). Not part of the public API. */
   isActive(): boolean {
-    return this.state.isEnabled() && !this.featureGate.isKillSwitched();
+    return this.localEnabled && this.state.isEnabled() && !this.featureGate.isKillSwitched();
+  }
+
+  /**
+   * `docs/05` §5.3's `setEnabled`: a local pause/resume independent of the
+   * remote kill-switch. Flipping this to `false` makes `emitEvent` a no-op
+   * immediately; flipping it back to `true` resumes capture as long as the
+   * state machine and feature gate both still allow it. Never touches
+   * `ClientStateMachine` — a kill-switch trip stays tripped regardless of
+   * this flag, and this flag survives a kill-switch trip too (it's just moot
+   * until the trip clears, which it never does short of a fresh client).
+   */
+  setEnabled(enabled: boolean): void {
+    this.localEnabled = enabled;
+  }
+
+  /** `docs/05` §5.3's `identify`: delegates to the `IdentityManager` this client already owns. */
+  identify(userId: string, traits?: Record<string, unknown>): void {
+    this.identity.identify(userId, traits);
+  }
+
+  /** `docs/05` §5.3's `reset`: delegates to the `IdentityManager` this client already owns. */
+  reset(): void {
+    this.identity.reset();
+  }
+
+  /**
+   * `docs/05` §5.3's `flush`: an expedited, best-effort queue drain via the
+   * fetch transport (never the beacon transport — that path is reserved for
+   * unload). Resolves `true` only if a drain attempt actually ran; `false`
+   * when one was already in flight (`this.draining`), so a caller can tell
+   * "no new attempt happened" apart from "an attempt happened but found
+   * nothing to send or failed". A drain failure is reported as a diagnostic,
+   * exactly like the steady-state `drain()` path, and still counts as
+   * "a sync attempt actually ran" — `flush()` promises an attempt, not a
+   * successful delivery.
+   */
+  async flush(): Promise<boolean> {
+    if (this.draining) return false;
+    this.draining = true;
+    try {
+      await this.drainOnce(this.fetchTransport);
+      return true;
+    } catch (error) {
+      this.report(error, 'client.flush');
+      return true;
+    } finally {
+      this.draining = false;
+    }
   }
 
   private notifyEnqueuedSafely(): void {
