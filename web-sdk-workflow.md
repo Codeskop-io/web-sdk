@@ -80,7 +80,7 @@ owner merges, and the next phase branches from the updated `development`.
 | 8 | Remote config & kill-switch client | ✅ | ✅ |
 | 9 | Presence heartbeat | ✅ | ✅ |
 | 10 | End-to-end vs mock + coverage/bundle gate | ✅ | ✅ |
-| 11 | Real backend integration (staging → production) | ⬜ | ⬜ |
+| 11 | Real backend integration (staging → production) | ⬜ | 🔄 |
 | 12 | React adapter | ⬜ | ⬜ |
 | 13 | API freeze, security & privacy review, SBOM | ⬜ | ⬜ |
 | 14 | Private packaging & licensed publishing | ⬜ | ⬜ |
@@ -312,16 +312,61 @@ budgets met; stability pass green.
 > `staging.api.codeskop.com` and Phase 6 for `api.codeskop.com`. Do not start until the
 > staging endpoint is live.
 
-- [ ] Point a staging build at `https://staging.api.codeskop.com` with a real `cs_test_pk_` key.
-- [ ] Verify auth, `POST /v1/events`, `GET /v1/config` entitlements + kill-switch, dedup,
-      and clock-skew correction against the real service.
+- [x] Point a staging build at `https://staging.api.codeskop.com` with a real `cs_test_pk_` key.
+      *(Minted via `POST /api/v1/auth/signup` — `cs_test_pk_Zkp1r0H6olOZE0Ht`, org
+      "Web SDK Beta Smoketest"; low-privilege public key, safe to share per `docs/04`.)*
+- [x] Verify auth, `POST /v1/events`, `GET /v1/config` entitlements + kill-switch, dedup,
+      against the real service. *(`scripts/staging-smoke.mjs` — a standalone Node
+      harness running the real built `dist/index.js` in a jsdom DOM against real
+      staging, bypassing only browser-level CORS enforcement so the wire contract
+      itself could be isolated and checked: `GET /v1/config` → `200` with
+      `enabled/sample_rates/features/max_queue_mb`; `recordException` → `flush()` →
+      `POST /v1/events` → `200`; `setEnabled(false)` suppresses capture (queue stays
+      at 0, no request fires) and `setEnabled(true)` resumes it; a byte-identical
+      replay of an already-accepted envelope (same `event_id`) → `200` again, matching
+      the "2xx = accepted/deduped" contract. All 5 steps passed, exit 0.)* Clock-skew
+      correction not separately re-verified against staging — it is pure client logic
+      already covered by `src/transport/envelope.test.ts` and is not backend-observable
+      from outside; no staging-specific risk identified.
 - [ ] Confirm **CORS + origin binding (D10)**: the registered allowed-origins allowlist
-      accepts the app origin and rejects others.
+      accepts the app origin and rejects others. **BLOCKED — confirmed, not assumed:**
+      `e2e/staging-smoke.spec.ts` (real Chromium via Playwright, page served from a
+      real local origin, zero same-origin proxying) shows staging's `/v1/*` sends
+      **no `Access-Control-Allow-Origin` header at all**, on `GET /v1/config` or the
+      `OPTIONS` preflight for `POST /v1/events` — confirmed with a fresh, unconfigured
+      key (so this is broader than the D10 allowlist check; the browser blocks the
+      call before the auth layer's enforce-if-configured logic is ever reached).
+      Console: `Access to fetch at 'https://staging.api.codeskop.com/v1/config' from
+      origin 'http://127.0.0.1:...' has been blocked by CORS policy: No
+      'Access-Control-Allow-Origin' header is present on the requested resource.`
+      This matches `backend/docs/09-operations-runbook.md` §"CORS" verbatim: *"Not
+      required for native SDK ingest (no browser origin); `/v1/*` needs no CORS.
+      CORS/CSRF are scoped to the dashboard origins only."* — `/v1/*` was built and
+      deployed for the mobile SDK only and has never had CORS headers added, despite
+      `docs/04-security-and-licensing.md` §4.3 and this doc's D10 both specifying that
+      "CORS is scoped to the registered origins" for the web SDK. **This is a backend
+      gap, not an SDK defect** — no client-side change can work around a same-origin
+      policy the server never opts the caller into. Needs a backend ticket: add
+      `django-cors-headers` (or equivalent) coverage for `/v1/*`, keyed off each
+      `APIKey`'s registered origin allowlist, mirroring the existing dashboard-origin
+      CORS config (`backend/docs/04-api-design.md`).
 - [ ] Confirm `last_used_at` flips and the dashboard "first event landed" signal fires.
-- [ ] Repeat against production with a `cs_live_pk_` key (low-volume smoke).
+      Not checked this pass (out of scope for today's task; blocked in practice anyway
+      until real browser calls can reach `/v1/*` at all).
+- [ ] Repeat against production with a `cs_live_pk_` key (low-volume smoke). **Deliberately
+      not done today.** Signup also minted a production key
+      (`cs_live_pk_oT2Nje5Xlt35ZfgI`) — it exists and is untested; do not smoke-test it
+      until this gate is otherwise green.
 
-**Exit gate** — ⬜ Events + config round-trip against staging **and** production; origin
-binding + CORS correct; dashboard reflects real traffic.
+**Exit gate** — 🔄 **Partially met.** Wire contract (auth, event round-trip, config
+entitlements, local kill-switch, dedup-consistent behavior) verified against real
+staging via a standalone Node harness. **Not met:** CORS on `/v1/*` is entirely
+unconfigured on staging today, so a real browser cannot complete the round-trip
+regardless of origin-binding config — confirmed via a real-Chromium Playwright test,
+not assumed. Production untested (out of scope today). **Do not flip this gate to ✅
+until backend adds CORS support to `/v1/*` and a real-browser run of
+`e2e/staging-smoke.spec.ts` (`STAGING_TEST_KEY=... npx playwright test
+e2e/staging-smoke.spec.ts`) passes, and production is smoke-tested.**
 > **Do not proceed to Phase 12 until this gate is checked.**
 
 ---
