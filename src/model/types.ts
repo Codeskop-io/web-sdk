@@ -65,7 +65,7 @@ interface NetworkEventPayloadBase {
   headers?: Record<string, string>;
 }
 
-/** Payload for a failed `fetch`/XHR call (network error or status >= 400). */
+/** Payload for a failed `fetch`/XHR call (network error or a status of 400 or above). */
 export interface ApiErrorPayload extends NetworkEventPayloadBase {
   error_kind: string;
 }
@@ -122,7 +122,7 @@ export interface BatchEnvelope {
     device: DeviceContext;
     app: AppContext;
   };
-  /** <= 100 events; <= 1 MB compressed; <= 64 KB/event. */
+  /** At most 100 events; at most 1 MB compressed; at most 64 KB/event. */
   batch: CodeskopEvent[];
 }
 
@@ -196,12 +196,8 @@ export interface CodeskopConfig {
   captureNetwork?: boolean;
   /** Install `error` + `unhandledrejection` handlers. Defaults to `true`. */
   captureErrors?: boolean;
-  /** Opt-in request/response bodies. Defaults to `false`. */
-  captureBodies?: boolean;
   /** Always-redacted header names. Defaults to `["authorization","cookie"]`. */
   redactHeaders?: string[];
-  /** Masked query keys. Defaults to `["token","apikey","password","secret"]`. */
-  redactQueryKeys?: string[];
   /** Client-seeded sample rates; remote config wins. Defaults to `{}`. */
   sampleRates?: Record<string, number>;
   /** Local queue byte cap in MB; remote config wins. Defaults to `5`. */

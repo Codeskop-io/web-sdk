@@ -38,7 +38,11 @@
     "test:e2e": "playwright test",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "size": "size-limit"
+    "size": "size-limit",
+    "api:check": "api-extractor run --verbose",
+    "api:update": "api-extractor run --local --verbose",
+    "api:check:all": "npm run api:check && npm run api:check --workspace=@codeskop/tracker-react",
+    "api:update:all": "npm run api:update && npm run api:update --workspace=@codeskop/tracker-react"
   },
   "size-limit": [
     {
@@ -50,6 +54,7 @@
   "dependencies": {},
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@microsoft/api-extractor": "^7.58.9",
     "@playwright/test": "^1.61.1",
     "@size-limit/preset-small-lib": "^12.1.0",
     "@types/node": "^26.1.1",

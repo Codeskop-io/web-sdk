@@ -18,9 +18,7 @@ init({
   environment: "production",            // optional
   captureNetwork: true,                 // fetch/XHR instrumentation (default true)
   captureErrors: true,                  // window error + unhandledrejection (default true)
-  captureBodies: false,                 // opt-in (default false)
   redactHeaders: ["authorization", "cookie"],
-  redactQueryKeys: ["token", "apikey", "password", "secret"],
   sampleRates: { api_timing: 0.2 },     // overridden by remote config
 });
 ```
@@ -35,9 +33,7 @@ init({
 | `environment` | `string` | `"production"` | Free-form tag |
 | `captureNetwork` | `boolean` | `true` | Instrument `fetch`/XHR |
 | `captureErrors` | `boolean` | `true` | `error` + `unhandledrejection` handlers |
-| `captureBodies` | `boolean` | `false` | Opt-in request/response bodies |
 | `redactHeaders` | `string[]` | `["authorization","cookie"]` | Always-redacted header names |
-| `redactQueryKeys` | `string[]` | `["token","apikey","password","secret"]` | Masked query keys |
 | `sampleRates` | `Record<string, number>` | `{}` | Client seed; remote config wins |
 | `maxQueueMb` | `number` | `5` | Local queue byte cap; remote config wins |
 

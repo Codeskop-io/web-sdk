@@ -16,9 +16,6 @@ export const HEADER_ALLOWLIST: readonly string[] = [
 /** Header names dropped outright, regardless of the allowlist (`CodeskopConfig.redactHeaders`). */
 export const DEFAULT_REDACT_HEADER_NAMES: readonly string[] = ['authorization', 'cookie'];
 
-/** Query-string keys masked by default (`CodeskopConfig.redactQueryKeys`). */
-export const DEFAULT_REDACT_QUERY_KEYS: readonly string[] = ['token', 'apikey', 'password', 'secret'];
-
 /** Placeholder substituted for a redacted error message. */
 export const REDACTED_MESSAGE_PLACEHOLDER = '[REDACTED]';
 
@@ -62,8 +59,8 @@ export interface RedactedUrl {
  * Reduces a captured request URL to `host` + `path`, dropping the query string
  * (and any fragment) entirely — never partially masked, since query strings are
  * high-entropy and routinely carry secrets (`docs/03` §3.5). This is the one
- * unconditional rule: it applies whether or not `redactQueryKeys` would have
- * matched anything, so a misconfigured/incomplete key list can never leak a
+ * unconditional rule: the whole query string is always dropped, so there is no
+ * key-by-key masking list that could be misconfigured or incomplete and leak a
  * secret through.
  *
  * Accepts absolute URLs (`https://host/path?query`) and bare paths

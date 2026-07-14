@@ -5,3 +5,7 @@ playwright-report/
 test-results/
 .DS_Store
 *.tgz
+
+# api-extractor scratch output (the committed baseline lives in etc/*.api.md)
+temp/
+react/temp/

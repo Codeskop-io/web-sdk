@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_REDACT_HEADER_NAMES,
-  DEFAULT_REDACT_QUERY_KEYS,
   HEADER_ALLOWLIST,
   REDACTED_MESSAGE_PLACEHOLDER,
   redactErrorMessage,
@@ -45,7 +44,6 @@ describe('redactHeaders', () => {
   it('exposes the frozen allowlist and default names', () => {
     expect(HEADER_ALLOWLIST).toContain('content-type');
     expect(DEFAULT_REDACT_HEADER_NAMES).toEqual(['authorization', 'cookie']);
-    expect(DEFAULT_REDACT_QUERY_KEYS).toContain('token');
   });
 });
 

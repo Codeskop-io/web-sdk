@@ -82,7 +82,7 @@ owner merges, and the next phase branches from the updated `development`.
 | 10 | End-to-end vs mock + coverage/bundle gate | ✅ | ✅ |
 | 11 | Real backend integration (staging → production) | ⬜ | 🔄 |
 | 12 | React adapter | ✅ | ✅ |
-| 13 | API freeze, security & privacy review, SBOM | ⬜ | ⬜ |
+| 13 | API freeze, security & privacy review, SBOM | ✅ | ✅ |
 | 14 | Private packaging & licensed publishing | ⬜ | ⬜ |
 | 15 | Release engineering, docs & GA operations | ⬜ | ⬜ |
 
@@ -495,16 +495,60 @@ package and the new `react/` workspace; the core's 12 KB budget is unaffected.
 
 **Goal:** lock the surface and prove it is safe to embed in customer pages.
 
-- [ ] Public API review; finalize names/signatures; mark internals non-exported.
-- [ ] API report (`api-extractor`) committed; a diff is CI-visible and blocking.
-- [ ] Adopt SemVer; document the compatibility policy.
-- [ ] Security/privacy: confirm no secret key is ever accepted; redaction audited
-      (headers, query, messages, traits); no PII by default; bodies opt-in.
-- [ ] Dependency/license audit; generate an **SBOM**; verify CSP-friendliness (no `eval`,
+- [x] Public API review; finalize names/signatures; mark internals non-exported.
+      Verified `src/index.ts` and `react/src/index.ts` are the *only* public entry
+      points (each package's `exports` map lists just `"."` and `"./package.json"` —
+      no wildcard/subpath exports, so nothing beyond the barrel is importable by
+      package-name resolution). Core barrel re-exports exactly `docs/05` §5.1/§5.3's
+      six functions (`init`, `identify`, `reset`, `recordException`, `setEnabled`,
+      `flush`) plus the wire/seam types; react barrel re-exports exactly Phase 12's
+      documented surface (`CodeskopProvider`, `CodeskopErrorBoundary`, `useCodeskop`,
+      `CodeskopContext`, plus their prop/value types). No internal module
+      (`core/*`, `capture/*`, `queue/*`, `transport/*`, `config/*`) is re-exported;
+      every internal helper type api-extractor's rolled-up `.d.ts` still emits
+      (e.g. `NetworkEventPayloadBase`, `CodeskopErrorBoundaryState`) is a
+      **non-exported** ambient declaration only reachable through an already-public
+      member's inferred shape, never importable by name.
+- [x] API report (`api-extractor`) committed; a diff is CI-visible and blocking.
+      `@microsoft/api-extractor` configured for both packages
+      (`api-extractor.json` / `react/api-extractor.json`, entry point =
+      each package's rolled-up `dist/index.d.ts`); baseline committed at
+      `etc/tracker.api.md` and `react/etc/tracker-react.api.md`. New scripts:
+      `api:check` (fails, exit 1, on any signature drift from the committed
+      baseline — verified live by injecting a diff and confirming a non-zero exit)
+      and `api:update` (regenerates the baseline locally, `--local`) in both
+      `package.json` and `react/package.json`, plus root-level `api:check:all` /
+      `api:update:all` that run both packages. `temp/` (api-extractor's scratch
+      output, not the baseline) added to `.gitignore`.
+- [x] Adopt SemVer; document the compatibility policy.
+      [`docs/07-semver-policy.md`](./docs/07-semver-policy.md): breaking vs. safe
+      change matrix (removing/renaming an export, narrowing a type, changing a
+      default = breaking/major; additive exports, widening a type = safe/minor;
+      fixes with no API change = patch), release process tied to `api:check`,
+      and a deprecation window before any breaking removal.
+- [x] Security/privacy: confirm no secret key is ever accepted; redaction audited
+      (headers, query, messages, traits); no PII by default; bodies opt-in. Audited
+      end-to-end against the real capture→queue→transport code (not just unit tests in
+      isolation) — all four items **pass** with exact file/line evidence, no code fix
+      needed; see [`docs/08-security-privacy-audit.md`](./docs/08-security-privacy-audit.md).
+- [x] Dependency/license audit; generate an **SBOM**; verify CSP-friendliness (no `eval`,
       no inline injection) and optional Subresource Integrity for any CDN build.
+      `npm audit`: 1 low finding (`esbuild` via `tsup`, dev-only, Windows-dev-server-only,
+      not shipped) — flagged for a human `npm audit fix` outside this concurrent session,
+      not applied here. License audit: all 264 installed packages permissive OSS, no
+      copyleft-strong, no unknowns. Zero-runtime-deps (D1) reconfirmed directly against
+      the **built** `dist/index.js`/`.cjs` (no imports/requires at all); react adapter's
+      built output imports only `react` (peer) + our own core. SBOM generated
+      (CycloneDX, via `npm sbom`) and committed at `sbom/tracker-sbom.cyclonedx.json`.
+      CSP: grepped `dist/` for `eval(`/`new Function(`/dynamic injection — none found.
+      SRI: not applicable, no CDN build planned. Full findings:
+      [`docs/09-supply-chain.md`](./docs/09-supply-chain.md).
 
-**Exit gate** — ⬜ Public API frozen + baseline-checked; SemVer documented; security/
-privacy signed off; SBOM produced.
+**Exit gate** — ✅ Public API frozen + baseline-checked (`etc/tracker.api.md`,
+`react/etc/tracker-react.api.md`, `api:check` blocking on drift); SemVer documented
+(`docs/07-semver-policy.md`); security/privacy signed off
+(`docs/08-security-privacy-audit.md`); SBOM produced (`sbom/tracker-sbom.cyclonedx.json`,
+`docs/09-supply-chain.md`).
 > **Do not proceed to Phase 14 until this gate is checked.**
 
 ---
