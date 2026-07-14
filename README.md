@@ -35,3 +35,4 @@ the web counterpart to the [Android SDK](../android) and a client of the **same*
 > **Note on the folder name:** `webpack` is only the directory name — the library is
 > built with **tsup** (esbuild), not webpack, because a distributable SDK needs lean,
 > tree-shakeable, multi-format output. See the workflow Phase 0.
+
