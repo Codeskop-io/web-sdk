@@ -108,16 +108,18 @@ describe('BeaconTransport — sendBeacon available (injected)', () => {
   });
 });
 
-let mockReachable = true;
-
-beforeAll(async () => {
-  mockReachable = await isMockReachable();
-  if (!mockReachable) {
-    console.warn(
-      `mock ingest server not reachable at ${MOCK_INGEST_URL}; skipping BeaconTransport vs-mock tests`,
-    );
-  }
-});
+// Checked with a top-level `await`, not inside `beforeAll` — `describe.runIf`/
+// `describe.skipIf` below evaluate their condition synchronously while Vitest
+// *collects* this file (before any lifecycle hook runs), so a `beforeAll`
+// assigning `mockReachable` later would always be too late to affect either
+// gate; a plain module-level `let mockReachable = true` default would make
+// `describe.runIf(mockReachable)` run unconditionally regardless of whether
+// the mock is actually up. Vitest awaits a test file's own top-level
+// `Promise`s during collection, so this genuinely gates on the real check.
+const mockReachable = await isMockReachable();
+if (!mockReachable) {
+  console.warn(`mock ingest server not reachable at ${MOCK_INGEST_URL}; skipping BeaconTransport vs-mock tests`);
+}
 
 describe.runIf(mockReachable)(
   'BeaconTransport — sendBeacon unavailable, real fetch fallback vs the mock',

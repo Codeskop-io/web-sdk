@@ -5,21 +5,27 @@
  * wire shape the mock (and eventually the real backend) serves, not just
  * the shape our own stubs assume.
  */
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { RemoteConfigClient } from './remoteConfigClient.js';
 
 const MOCK_ENDPOINT = process.env.MOCK_INGEST_URL ?? 'http://localhost:8080';
 
-let mockReachable = true;
-
-beforeAll(async () => {
+// Checked with a top-level `await`, not inside `beforeAll` — `describe.runIf`/
+// `describe.skipIf` evaluate their condition synchronously while Vitest
+// *collects* this file (before any lifecycle hook runs), so a `beforeAll`
+// assigning `mockReachable` later would always be too late to affect either
+// gate; a plain module-level `let mockReachable = true` default would make
+// `describe.runIf(mockReachable)` run unconditionally regardless of whether
+// the mock is actually up. Vitest awaits a test file's own top-level
+// `Promise`s during collection, so this genuinely gates on the real check.
+const mockReachable = await (async () => {
   try {
     const res = await fetch(`${MOCK_ENDPOINT}/v1/config`);
-    mockReachable = res.ok;
+    return res.ok;
   } catch {
-    mockReachable = false;
+    return false;
   }
-});
+})();
 
 beforeEach(() => {
   localStorage.clear();
