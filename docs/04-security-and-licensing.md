@@ -40,11 +40,29 @@ The web equivalent:
 > This makes a lifted key useless on an attacker's origin, without any client-side
 > secret.
 
+> **Status as of Workflow Phase 11/15: designed, not yet implemented server-side.**
+> There is no `allowed_origins`-style field on `APIKey`, no create/update API or
+> dashboard control to set one, and no enforcement of it in the ingest auth/CORS layer
+> — confirmed directly against `backend/apps/accounts/models.py` and
+> `backend/apps/ingest/cors.py` (see `web-sdk-workflow.md` Phase 11's exit-gate note).
+> Everything above this line describes the intended design so it is the SDK's target
+> contract; treat the `Origin` header mirroring (`context.app.origin`) as already done
+> on the SDK side, but the backend does not yet reject an unregistered origin.
+
 ## 4.4 Privacy & redaction (D3)
 
-- Metadata-first: no request/response **bodies** by default (opt-in only).
+- Metadata-first: no request/response **bodies** are ever captured — there is
+  currently **no opt-in** for this (a `captureBodies` config field existed pre-freeze
+  but was removed before the Phase 13 API baseline was committed, since it was never
+  wired to any real capture behavior — see `docs/08-security-privacy-audit.md` §8.6).
+  If body capture is wanted later, it needs new, tested code and a new API surface, not
+  a flag flip.
 - `Authorization`/`Cookie` never captured; header capture is an allowlist; URL query
-  strings dropped; error messages redacted by default; `identify` traits redacted.
+  strings are always dropped **entirely** (not selectively masked — same §8.6 history
+  killed the `redactQueryKeys` field for the same reason); error messages redacted by
+  default (unconditionally — see `docs/11-troubleshooting-faq.md` §11.3 for the exact
+  current behavior);
+  `identify` traits redacted.
 - No PII leaves the device by default; this is audited end-to-end in Workflow Phase 13.
 
 ## 4.5 Host-safety guards (D4)

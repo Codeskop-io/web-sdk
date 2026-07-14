@@ -84,7 +84,7 @@ owner merges, and the next phase branches from the updated `development`.
 | 12 | React adapter | ✅ | ✅ |
 | 13 | API freeze, security & privacy review, SBOM | ✅ | ✅ |
 | 14 | Private packaging & licensed publishing | ⬜ | ⬜ |
-| 15 | Release engineering, docs & GA operations | ⬜ | ⬜ |
+| 15 | Release engineering, docs & GA operations | 🟡 | 🔄 |
 
 **Released for licensed customers = all sixteen gates ✅.**
 
@@ -645,21 +645,138 @@ until a human completes it and a real `npm install @codeskop/tracker` from
 
 **Goal:** repeatable releases, complete docs, and an operable library in the field.
 
-- [ ] Release pipeline: **tag `vX.Y.Z` → build → test → size-check → publish** to the
-      private registry; auto-generated CHANGELOG; reproducible build.
-- [ ] Quickstart + framework guides (vanilla, React, CDN-with-token) verified against the
-      published package; troubleshooting/FAQ (token setup, no events, redaction config).
-- [ ] SDK-health telemetry: self-error rate, ingest success, config-fetch success,
-      queue-drop rate — dashboards + alerts.
-- [ ] Runbooks: kill-switch drill (disable a bad release in the field), deprecation/yank
-      policy, on-call ownership; rollback rehearsed.
-- [ ] Confirm the kill-switch disables a misbehaving release without a customer redeploy.
+> **Process note:** Phase 14's gate is still 🟡 (partially checked — see that phase's
+> exit gate note; the one remaining step is a real npmjs.com publish, which needs
+> human-held credentials that don't exist in this environment). This phase proceeded
+> ahead of that gate flipping fully green, on explicit direction, to do the work here
+> that doesn't depend on a real publish having happened (the docs/spec/runbook work
+> below). **Do not read Phase 15's own gate below as implying Phase 14 is done** — it
+> isn't; see that phase's own entry.
 
-**Exit gate** — ⬜ A tagged release publishes via the pipeline; docs let a new licensed
-developer integrate unaided; health monitored; kill-switch drill signed off.
+- [ ] Release pipeline: **tag `vX.Y.Z` → build → test → size-check → publish** to the
+      private registry; auto-generated CHANGELOG; reproducible build. **Not built this
+      pass** — out of this pass's assigned scope, and blocked on the same missing
+      npmjs.com credentials as Phase 14 for the "publish" step specifically (the
+      build/test/size-check steps don't need credentials and could be scaffolded
+      independently of that blocker, but weren't attempted here). Also worth noting as
+      a discovered, pre-existing gap while working this phase: **no
+      `.github/workflows/` directory exists anywhere in this repo**, despite Phase 0's
+      tracker entry and `docs/07` §7.4/`docs/10` §10.3 describing CI steps
+      (`lint → typecheck → test → build → size-limit`, `api:check`, a publish workflow)
+      as already wired — none of that exists as an actual committed workflow file today.
+      This predates this phase and wasn't introduced by it; flagged here since it
+      directly blocks this checkbox and is otherwise easy to miss because the docs read
+      as if CI already runs these gates.
+- [x] Quickstart + framework guides (vanilla, React) in
+      [`docs/06-integration-guide.md`](./docs/06-integration-guide.md) walked end-to-end
+      against the actual built code (not just re-read) and corrected where stale — see
+      that doc's own §6.9 revision note for the itemized diff. Real inaccuracies found
+      and fixed: the CDN section (§6.5) presented a live-looking
+      `cdn.codeskop.com` URL + SRI hash for a build that **doesn't exist**
+      (`tsup.config.ts` only emits `esm`/`cjs`, no `iife`/CDN target, and there is no CDN
+      hosting anywhere in this repo) — corrected to describe what's actually real (the
+      `data-codeskop-key` auto-init mechanism, Phase 4) versus what's aspirational;
+      §6.1/§6.7's origin-allowlist claims contradicted Phase 11's own finding that D10's
+      web origin binding has no backend implementation at all — corrected, and the same
+      stale claim fixed at its source in
+      [`docs/04-security-and-licensing.md`](./docs/04-security-and-licensing.md) §4.3;
+      §6.8's "opt into richer capture explicitly" contradicted Phase 13's own finding
+      (`docs/08-security-privacy-audit.md` §8.6) that the body-capture and
+      query-key-masking opt-ins were removed before the API freeze for never having
+      been wired to real behavior — corrected there and in `docs/04` §4.4. The React
+      section (§6.4) was accurate but thin; expanded with the peer-dependency install
+      line, `CodeskopProvider`'s config-read-once-at-mount behavior, the error
+      boundary's documented React limitation (render errors only), and `useCodeskop()`
+      with no provider — all checked directly against `react/src/CodeskopProvider.tsx`,
+      `react/src/CodeskopErrorBoundary.tsx`, `react/src/useCodeskop.ts`. **Not done:**
+      "verified against the **published** package" specifically — there is no published
+      package yet (Phase 14's blocker), so this was verified against the built `dist/`
+      output and the source instead, the closest available substitute.
+- [x] Troubleshooting/FAQ added:
+      [`docs/11-troubleshooting-faq.md`](./docs/11-troubleshooting-faq.md) — token
+      setup (install 401/403, the two different kinds of token), a ranked "why isn't
+      anything arriving" walkthrough (secret-key fail-soft → plan/kill-switch → sampling
+      → browser-level blocking, with the once-per-init config-fetch timing detail called
+      out explicitly), a redaction-config reference table showing exactly what's
+      configurable today (headers only) versus what was removed as a documented-but-inert
+      no-op before the Phase 13 freeze (bodies, query-key masking), a corrected CORS
+      section (not an origin-allowlist rejection — that mechanism doesn't exist
+      server-side yet), and React-specific gotchas. `docs/06` §6.7 now points here
+      instead of duplicating it.
+- [x] SDK-health telemetry: **a concrete spec, explicitly not a build** —
+      [`docs/12-sdk-health-telemetry-spec.md`](./docs/12-sdk-health-telemetry-spec.md).
+      Defines the four metrics (self-error rate, ingest success rate, config-fetch
+      success rate, queue-drop rate), traces each to the exact existing internal hook it
+      would read from (`safely()`'s `onError`/`DiagnosticHandler`, already built and
+      already wired from every module into `CodeskopClient.report()` — but that method's
+      only sink today, `onDiagnostic`, is a test-only DI seam never supplied a real
+      handler in production; `Transport.send()`'s `TransportResult`; `DurableQueue`'s
+      (uncounted) drop-oldest eviction path; `RemoteConfigClient`'s per-failure-mode
+      internals), and states plainly in its own §12.5 that **wiring any of this to an
+      actual metrics backend, and the backend/dashboard/alerting itself, is a follow-up
+      — no metrics backend exists in this workspace, and none was built here.**
+- [x] Runbooks:
+      [`docs/13-operations-runbooks.md`](./docs/13-operations-runbooks.md) — a
+      kill-switch drill with the **exact** mechanism (`Environment.ingest_enabled` via
+      Django admin at `/admin/`, versus the blast-radius-everything
+      `INGEST_GLOBALLY_ENABLED` global flag — both traced to
+      `backend/apps/ingest/config.py`'s `_is_enabled`), the real propagation timing
+      (**not live** — the SDK fetches `GET /v1/config` exactly once per `init()`,
+      verified against `src/runtime/client.ts`; an already-open tab keeps its old config
+      until reload; a freshly-loading page picks up the change within roughly the
+      endpoint's `Cache-Control: max-age=300` — 5 minutes — window), and how to verify it
+      took effect (a `curl` check server-side, a fresh-context browser check
+      client-side); a deprecation/yank policy that fills in the specific support-window
+      numbers `docs/07-semver-policy.md` §7.5 deferred to this phase, plus how yanking
+      differs from the kill-switch as the correct *immediate* incident lever; and an
+      on-call ownership placeholder ("Web SDK team," matching this doc's own `Owner`
+      line — deliberately not a named individual, since none is assigned). The runbook
+      also states plainly, in its own text, that the *live end-to-end* version of the
+      kill-switch drill (flip a real `Environment` row, watch a real browser stop
+      sending) has never been run as an automated test — only the unit-level logic
+      (`src/runtime/client.test.ts`, `backend/apps/ingest/tests/test_config.py`) and the
+      *local* `setEnabled(false)` path (`e2e/staging-smoke.spec.ts`) are covered
+      end-to-end today. **"Rollback rehearsed" is explicitly not claimed** — the runbook
+      documents the mechanism and its verification precisely, but no live drill was
+      actually executed against staging/production in this pass (doing so would flip a
+      real environment's capture off, which wasn't authorized here).
+- [ ] Confirm the kill-switch disables a misbehaving release without a customer
+      redeploy: **the underlying mechanism is confirmed** (this is not new — Phase
+      8/10's tests already prove `enabled:false` → `emitEvent` is a no-op, and Phase 11
+      proved the real `GET /v1/config` round-trip against live staging/production); what
+      this phase adds is the **runbook** for operating it
+      (`docs/13-operations-runbooks.md`) plus the precise, previously-undocumented
+      propagation timing. What remains open, stated plainly: no one has actually
+      executed the drill against a real staging/production `Environment` row and
+      watched a real browser in this pass (see above) — the mechanism is proven, the
+      *drill* is written but not yet rehearsed for real.
+
+**Exit gate** — 🟡 **Partially met, not fully checked — genuinely achievable work is
+done, the rest is explicitly deferred, not silently skipped:**
+- **Done:** the integration guide is accurate against the real built code (§6.9 lists
+  every correction); a troubleshooting/FAQ doc exists and is grounded in the actual
+  runtime behavior; a concrete, traceable SDK-health telemetry spec exists; kill-switch,
+  deprecation/yank, and on-call runbooks exist, with the kill-switch drill's timing
+  claims verified against the actual client/backend code (not assumed).
+- **Explicitly deferred, not done here:**
+  - The release pipeline itself (tag → build → test → size-check → publish CI
+    workflow) — blocked on the same missing npmjs.com credentials as Phase 14 for the
+    publish step, and no `.github/workflows/` exists in this repo at all today (a
+    pre-existing gap, flagged above).
+  - SDK-health **dashboards and alerting** — only a spec exists; no metrics backend, no
+    dashboard, no alert rule was built anywhere in this pass.
+  - An actual **live rehearsal** of the kill-switch drill against real
+    staging/production — the mechanism and the runbook are both verified/written, but
+    no one flipped a real `Environment.ingest_enabled` row and watched a real browser
+    in this pass.
+- Phase 14's own gate (real npmjs.com publish) remains the true long-pole blocker for
+  calling the *whole* workflow released — see that phase's entry; this phase does not
+  and cannot resolve it.
 
 > ✅ **When this gate is checked, the web SDK is production-ready, licensed, and
-> released — ready to ship alongside the mobile SDK.**
+> released — ready to ship alongside the mobile SDK.** That point has **not** been
+> reached yet: Phase 14's publish and this phase's pipeline/dashboards/live-drill items
+> are the concrete remaining work, tracked above rather than glossed over.
 
 ## Dependency flow
 
