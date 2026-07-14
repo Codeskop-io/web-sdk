@@ -54,17 +54,21 @@ jobs:
       - name: Typecheck (core)
         run: npm run typecheck
 
-      - name: Typecheck (react adapter)
-        run: npm run typecheck --workspace=@codeskop/tracker-react
-
       - name: Test + coverage gate (core)
         run: npm test
 
-      - name: Test + coverage gate (react adapter)
-        run: npm run test --workspace=@codeskop/tracker-react
-
+      # Core must be built before anything react-adapter-side runs — see the
+      # matching comment in ci.yml (the react workspace resolves
+      # `@codeskop/tracker` via a workspace symlink to the repo root, whose
+      # `exports`/`types` point at `dist/`, not `src/`).
       - name: Build (core)
         run: npm run build
+
+      - name: Typecheck (react adapter)
+        run: npm run typecheck --workspace=@codeskop/tracker-react
+
+      - name: Test + coverage gate (react adapter)
+        run: npm run test --workspace=@codeskop/tracker-react
 
       - name: Build (react adapter)
         run: npm run build --workspace=@codeskop/tracker-react

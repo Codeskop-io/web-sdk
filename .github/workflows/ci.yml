@@ -49,20 +49,29 @@ jobs:
       - name: Typecheck (core)
         run: npm run typecheck
 
-      - name: Typecheck (react adapter)
-        run: npm run typecheck --workspace=@codeskop/tracker-react
-
       # `vitest run --coverage` fails the job itself when a threshold in
       # vitest.config.ts (80% lines/statements/functions/branches) isn't met —
       # this is the coverage gate, not a separate step.
       - name: Test + coverage gate (core)
         run: npm test
 
-      - name: Test + coverage gate (react adapter)
-        run: npm run test --workspace=@codeskop/tracker-react
-
+      # Core must be built *before* anything react-adapter-side runs: the
+      # react workspace depends on `@codeskop/tracker` via npm workspace
+      # linking (a node_modules symlink to the repo root, not a copy), and
+      # that package's `exports`/`types` point at `dist/`, not `src/` — so a
+      # clean checkout's react typecheck/test fail with "Cannot find module
+      # '@codeskop/tracker'" until core's own `dist/` exists. This isn't
+      # about the react adapter needing `@codeskop/tracker`'s *build output*
+      # to have already been re-checked — the workspace symlink is always in
+      # place after `npm ci`; the missing piece is purely core's `dist/`.
       - name: Build (core)
         run: npm run build
+
+      - name: Typecheck (react adapter)
+        run: npm run typecheck --workspace=@codeskop/tracker-react
+
+      - name: Test + coverage gate (react adapter)
+        run: npm run test --workspace=@codeskop/tracker-react
 
       - name: Build (react adapter)
         run: npm run build --workspace=@codeskop/tracker-react

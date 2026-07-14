@@ -48,25 +48,31 @@ three files on purpose. If you change a gate, change it in all three.
 2. `npx playwright install --with-deps chromium` (only the e2e step needs this).
 3. `npm run lint` — ESLint over the whole tree (core, react adapter, and the demo
    example under `react/example`).
-4. `npm run typecheck` (core) + `npm run typecheck --workspace=@codeskop/tracker-react`
-   (adapter). **Note:** always target the workspace by its full package name
+4. `npm run typecheck` (core) → `npm test` (core) → **`npm run build` (core)** →
+   `npm run typecheck --workspace=@codeskop/tracker-react` (adapter) → `npm run test
+   --workspace=@codeskop/tracker-react` (adapter) → `npm run build
+   --workspace=@codeskop/tracker-react` (adapter). **Core's build has to happen before
+   the adapter's typecheck/test, not after** — the `react/` workspace resolves
+   `@codeskop/tracker` through an npm workspace symlink to the repo root, and that
+   package's `exports`/`types` fields point at `dist/`, not `src/`; on a clean
+   checkout, `react/`'s typecheck and tests fail with "Cannot find module
+   '@codeskop/tracker'" until core's own `dist/` exists. (This was caught for real —
+   see §6 — not just reasoned about: the first live CI run against
+   `Codeskop-io/web-sdk` failed on exactly this before the step order was fixed.)
+   **Note:** always target the workspace by its full package name
    (`@codeskop/tracker-react`), never by directory (`--workspace=react`) — the latter
    also matches the nested `react/example` demo workspace and fails on its missing
    `typecheck`/`lint` scripts. Every workspace-scoped command in these workflows uses
-   the full name for this reason.
-5. `npm test` (core) + `npm run test --workspace=@codeskop/tracker-react` (adapter) —
-   `vitest run --coverage`, which **fails the job itself** if the 80%
-   lines/statements/functions/branches threshold in `vitest.config.ts` isn't met. This
-   is the coverage gate; it isn't a separate step.
-6. `npm run build` (core) + `npm run build --workspace=@codeskop/tracker-react`
-   (adapter) — `tsup`, ESM + CJS + `.d.ts`.
-7. `npm run api:check:all` — the Phase 13 API-freeze check (`api-extractor` against
+   the full name for this reason. `vitest run --coverage` **fails the job itself** if
+   the 80% lines/statements/functions/branches threshold in `vitest.config.ts` isn't
+   met — that's the coverage gate; it isn't a separate step.
+5. `npm run api:check:all` — the Phase 13 API-freeze check (`api-extractor` against
    the committed baselines `etc/tracker.api.md` / `react/etc/tracker-react.api.md`);
-   fails on any undocumented signature drift. Runs after the build step, since its
-   entry point is each package's built `dist/index.d.ts`.
-8. `npm run size` (core, 12 KB gzipped budget) + `npm run size
+   fails on any undocumented signature drift. Runs after both builds, since its entry
+   point is each package's built `dist/index.d.ts`.
+6. `npm run size` (core, 12 KB gzipped budget) + `npm run size
    --workspace=@codeskop/tracker-react` (adapter, 2.5 KB gzipped budget).
-9. `npx playwright test` — real Chromium against the vendored mock ingest server
+7. `npx playwright test` — real Chromium against the vendored mock ingest server
    (§1.2). `e2e/staging-smoke.spec.ts` is opt-in (`test.skip` unless
    `STAGING_TEST_KEY`/`PRODUCTION_TEST_KEY` is set) and never runs live in any of
    these three workflows.
