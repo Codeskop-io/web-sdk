@@ -43,6 +43,15 @@ jobs:
       - name: Install Playwright's Chromium
         run: npx playwright install --with-deps chromium
 
+      - name: DEBUG what is on port 8080
+        run: |
+          echo "--- ss -tlnp ---"
+          sudo ss -tlnp || true
+          echo "--- curl /v1/config ---"
+          curl -sv http://localhost:8080/v1/config || true
+          echo "--- curl / ---"
+          curl -sv http://localhost:8080/ || true
+
       - name: Lint
         run: npm run lint
 
