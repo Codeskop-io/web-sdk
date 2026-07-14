@@ -81,7 +81,7 @@ owner merges, and the next phase branches from the updated `development`.
 | 9 | Presence heartbeat | ✅ | ✅ |
 | 10 | End-to-end vs mock + coverage/bundle gate | ✅ | ✅ |
 | 11 | Real backend integration (staging → production) | ⬜ | 🔄 |
-| 12 | React adapter | ⬜ | ⬜ |
+| 12 | React adapter | ✅ | ✅ |
 | 13 | API freeze, security & privacy review, SBOM | ⬜ | ⬜ |
 | 14 | Private packaging & licensed publishing | ⬜ | ⬜ |
 | 15 | Release engineering, docs & GA operations | ⬜ | ⬜ |
@@ -409,13 +409,84 @@ origin succeeds and another origin is rejected).
 
 **Goal:** first-class React integration.
 
-- [ ] `@codeskop/tracker-react`: `<CodeskopErrorBoundary>` + a provider/hook that wires
-      `init` and surfaces `recordException`.
-- [ ] SSR-safe (no window access on the server; initializes on the client).
-- [ ] `example/` React app exercising capture end-to-end against staging.
-- [ ] Tests for the boundary + hook.
+- [x] `@codeskop/tracker-react`: a **second, minimal package folder** (`react/`), not a
+      subpath export — matches `docs/02` §2.1's package-layout diagram and `docs/05`
+      §5.5's documented package name, and Phase 14 already plans to publish it
+      separately. Wired as an npm workspace (root `package.json`'s new `"workspaces"`
+      field) with a `file:..`/`file:.` local dependency on `@codeskop/tracker` (no
+      registry publish needed pre-Phase 14); own `tsup`/`vitest`/`eslint`(inherited)/
+      `tsconfig` per `react/`. Exports `CodeskopProvider`, `CodeskopErrorBoundary`,
+      `useCodeskop`, and `CodeskopContext` (`react/src/index.ts`). The **core stays
+      dependency-free**: `dependencies: {}` in the root `package.json` is untouched;
+      only `react/package.json` depends on `react` (`peerDependencies`) — a vanilla
+      `@codeskop/tracker` consumer's install is unaffected.
+      - `CodeskopProvider` (`react/src/CodeskopProvider.tsx`): calls `init(config)`
+        once, inside a `useEffect` on mount — `config` is captured via `useRef` on
+        first render, so a fresh inline `config={{ ... }}` object on every re-render
+        never re-triggers `init()`.
+      - `CodeskopErrorBoundary` (`react/src/CodeskopErrorBoundary.tsx`): a class
+        component (error boundaries have no Hook form); `componentDidCatch` reports
+        via `recordException(error, { source: 'react-error-boundary', componentStack })`
+        (imported directly from the core, not through context — it's a safe no-op
+        singleton either way, and a class component can't call a Hook); `fallback`
+        prop accepts a fixed node or a `(error, reset) => node` function.
+      - `useCodeskop()` (`react/src/useCodeskop.ts` + `context.ts`): reads
+        `CodeskopContext`, whose *default* value is the real
+        `recordException`/`identify`/`reset`/`setEnabled`/`flush` singletons — so the
+        hook is safe to call with **no** `CodeskopProvider` above it at all (every one
+        of those functions is already a no-op before `init()`, `docs/05` §5.4).
+- [x] SSR-safe: `init()` only ever runs inside `useEffect`, which React never executes
+      during a server render, so no explicit `typeof window` guard is needed in the
+      provider itself — verified for real, not asserted, by `react/src/ssr.test.tsx`
+      running under Vitest's **`node`** environment (`// @vitest-environment node`,
+      genuinely no `window`/`document`, not a jsdom stand-in) and calling
+      `renderToString` on `<CodeskopProvider><CodeskopErrorBoundary>...`.
+- [x] `react/example/`: a Vite + React app (`@vitejs/plugin-react`) wiring
+      `CodeskopProvider` + `CodeskopErrorBoundary` + `useCodeskop()` with buttons for
+      `recordException`, `identify`, a failing `fetch()`, a render crash (caught by
+      the boundary), `flush()`, and a mock-debug-state viewer. Points
+      `endpoint: window.location.origin` and proxies `/v1/*`+`/__debug/*` to
+      `http://localhost:8080` via `vite.config.ts`'s dev-server proxy (the mock sends
+      no CORS headers — same trick `e2e/fixtures/env.ts` uses). **Actually driven**
+      with a real headless Chromium (a throwaway Playwright script, not committed) end
+      to end against a real `backend/mock-ingest-server/server.py` process: all of
+      `recordException`, a cross-host failing `fetch()` (`api_timing` + `api_error`
+      with `error_kind: "network_error"` — a same-host `fetch('/does-not-exist')`
+      would be silently excluded by the core's self-ingest-exclusion, since this
+      example's `endpoint` *is* its own origin; the demo deliberately targets a
+      different, connection-refused host instead, documented in `react/example/README.md`),
+      `identify`, a boundary-caught render crash (reported with the identified user
+      attached, confirming ordering), and `flush()` all landed on the mock's
+      `/__debug/received`, with zero unexpected console errors. **Also smoke-tested
+      against real staging** (`https://staging.api.codeskop.com`,
+      `cs_test_pk_Zkp1r0H6olOZE0Ht` — the same Phase 11 key, temporarily swapped into
+      `App.tsx` for the run then reverted, not committed): `GET /v1/config` → `200`,
+      `POST /v1/events` → `200`, zero request failures, zero console errors,
+      `flush()` reported "ran a sync" — the adapter genuinely round-trips through a
+      real browser to the real backend, not just the mock.
+- [x] Tests (`@testing-library/react` + Vitest, `react/src/*.test.tsx`, 15 tests):
+      `CodeskopProvider` (renders children; calls `init` exactly once on mount; a
+      re-render with a new `config` object does not re-call `init`),
+      `CodeskopErrorBoundary` (renders children when nothing throws; reports a caught
+      error via `recordException(error, attributes)` and renders the fallback node;
+      calls an optional `onError`; a function-fallback can `reset()` the boundary back
+      to children; renders nothing with no fallback; normalizes a non-`Error` thrown
+      value), `useCodeskop` (works with no provider at all, returning the exact same
+      function references the vanilla core exports by default; honors a
+      `CodeskopContext.Provider` test-double override), and the SSR test above.
+      100% statements/lines, 90% branches (only the `componentStack ?? undefined`
+      fallback branch uncovered), well above the 80% bar. Own `size-limit` budget —
+      **2.5 KB gzipped** for the adapter alone (`react`/`@codeskop/tracker` excluded
+      via `size-limit`'s `ignore`, matching `docs/02` §2.1's "adapters are separate
+      entry points" — a vanilla consumer of the core never pays for this), actual:
+      **610 B gzipped**. The core's own budget is unaffected: still **10.35 KB of
+      12 KB** — unchanged from Phase 10, confirmed by re-running `npm run size` at
+      the root after all of the above.
 
-**Exit gate** — ⬜ A React sample reports errors + network to the backend; adapter tests green.
+**Exit gate** — ✅ A React sample reports errors + network to the backend (mock,
+verified live; staging, smoke-tested live); adapter tests green (15/15, 100%
+stmts/lines); full gate (lint/typecheck/test/build/size) green for both the root
+package and the new `react/` workspace; the core's 12 KB budget is unaffected.
 > **Do not proceed to Phase 13 until this gate is checked.**
 
 ---

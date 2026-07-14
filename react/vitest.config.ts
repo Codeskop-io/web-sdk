@@ -4,11 +4,6 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
-    // `react/` is a separate workspace package with its own `vitest.config.ts`
-    // (jsdom + RTL + jest-dom setup) — excluded here so `npm test` at the root
-    // only ever exercises the framework-free core (`docs/02` §2.1), and the
-    // adapter's suite is run via `npm run test --workspace=react`.
-    exclude: ['e2e/**', 'react/**', 'node_modules/**'],
     coverage: {
       provider: 'v8',
       include: ['src/**'],

@@ -1,15 +1,11 @@
 {
-  "name": "@codeskop/tracker",
+  "name": "@codeskop/tracker-react",
   "version": "0.1.0-beta.0",
-  "description": "Codeskop web SDK — browser error, network, and presence capture.",
+  "description": "First-class React integration for @codeskop/tracker — a provider, an error boundary, and a hook.",
   "private": true,
   "type": "module",
   "sideEffects": false,
   "license": "UNLICENSED",
-  "workspaces": [
-    "react",
-    "react/example"
-  ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -35,7 +31,6 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest run --coverage",
-    "test:e2e": "playwright test",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "size": "size-limit"
@@ -43,25 +38,29 @@
   "size-limit": [
     {
       "path": "dist/index.js",
-      "limit": "12 KB",
-      "gzip": true
+      "limit": "2.5 KB",
+      "gzip": true,
+      "ignore": ["react", "@codeskop/tracker"]
     }
   ],
-  "dependencies": {},
+  "dependencies": {
+    "@codeskop/tracker": "file:.."
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0"
+  },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.61.1",
-    "@size-limit/preset-small-lib": "^12.1.0",
-    "@types/node": "^26.1.1",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
     "@vitest/coverage-v8": "^4.1.10",
-    "eslint": "^10.7.0",
-    "fake-indexeddb": "^6.2.5",
     "jsdom": "^29.1.1",
-    "prettier": "^3.9.5",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "size-limit": "^12.1.0",
     "tsup": "^8.5.1",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.63.0",
     "vitest": "^4.1.10"
   }
 }
