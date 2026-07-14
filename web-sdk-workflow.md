@@ -557,18 +557,86 @@ package and the new `react/` workspace; the core's 12 KB budget is unaffected.
 
 **Goal:** the SDK is fetchable **only by licensed customers** (D11).
 
-- [ ] Publish `@codeskop/tracker` (+ `-react`) to a **private registry** (npm private org
-      or GitHub Packages), scoped and access-controlled.
-- [ ] Per-customer **install tokens** tied to an active subscription; a customer `.npmrc`
-      snippet in the integration guide; token revocation on churn.
-- [ ] Optional **runtime license/plan gate**: the SDK degrades to no-op if the key's plan
-      is inactive (server-driven via `GET /v1/config`, mirroring `:tracker-noop`).
-- [ ] npm **provenance**/signing; sources + types; no secrets in the published tarball
-      (`npm pack` audit).
-- [ ] Verify a clean licensed project installs and runs from the registry with one line.
+- [x] User decision: publish to the **private npm registry** (`registry.npmjs.org`,
+      `@codeskop` scope), not GitHub Packages. Both `package.json` (core) and
+      `react/package.json` had `"private": true` removed and gained:
+      ```json
+      "publishConfig": { "access": "restricted", "registry": "https://registry.npmjs.org/", "provenance": true }
+      ```
+      Researched `provenance` first rather than assuming: confirmed via npm's current
+      docs (`docs.npmjs.com/generating-provenance-statements`) that
+      `publishConfig.provenance` **is** a real, documented package.json key — equivalent
+      to the `--provenance` CLI flag, not a CLI-only setting — so it's committed here
+      rather than left as a flag someone has to remember at publish time. It only takes
+      effect when publishing from a supported cloud CI provider (GitHub Actions/GitLab
+      CI) with OIDC (`docs/10` §10.4); this is the actual npm-documented behavior, not
+      an assumption.
+      Also found and fixed a real publish-blocker while validating: `react/package.json`
+      still depended on the core package via `"@codeskop/tracker": "file:.."` (Phase
+      12's placeholder, explicitly noted there as "no registry publish needed
+      pre-Phase 14"). A `file:` spec would have published literally into the
+      `-react` tarball's `package.json`, which breaks for every external installer (no
+      `..` on their machine). Changed to `"^0.1.0-beta.0"` — resolvable from the
+      registry once core is published, and still resolved to the local workspace
+      package by npm's own workspace linking today (verified: `npm install`
+      regenerates the lockfile with the semver range while
+      `node_modules/@codeskop/tracker` stays a symlink to the workspace root; both
+      packages still build and all 403 (core) + 15 (react) tests still pass).
+- [x] Validated readiness without real npmjs.com credentials (none exist in this
+      environment; no publish attempted — see `docs/10-publishing-setup.md`).
+      `npm publish --dry-run` (both packages, from a clean build): tarball contents
+      listed, ends with `npm warn This command requires you to be logged in to
+      https://registry.npmjs.org/ (dry-run)` — the expected auth signal in a
+      credential-less environment; exits `0` because `--dry-run` doesn't require real
+      auth to preview. `npm pack` (both) + extracted and inspected: core tarball is
+      exactly `README.md`, `package.json`, `dist/{index.js,index.cjs,index.d.ts,
+      index.d.cts,*.map}` (8 files); react tarball the same 8-entry shape (added a
+      missing `react/README.md` so the package actually ships one — it wasn't present
+      before, so npm silently omitted it). No `.env`, no `src/`, no test files, no
+      `node_modules`, no secrets — grepped `dist/*.js`/`*.cjs` for secret-key/token
+      patterns, none found. Further verified the core tarball is a genuinely working
+      package, not just clean: installed it fresh (`npm install <tgz>` into an empty
+      project) and confirmed `import { init, identify, reset, recordException,
+      setEnabled, flush } from '@codeskop/tracker'` resolves all six as functions —
+      the closest same-shape check available to "installs and runs from the registry"
+      without a real registry.
+- [x] Per-customer **install tokens**: exact customer `.npmrc` snippet (per `docs/04`
+      §4.6, updated for the npmjs.com decision — was drafted against a placeholder
+      `registry.codeskop.com`) added to `docs/06-integration-guide.md` §6.2:
+      ```ini
+      @codeskop:registry=https://registry.npmjs.org/
+      //registry.npmjs.org/:_authToken=${CODESKOP_TOKEN}
+      ```
+      `docs/04-security-and-licensing.md` §4.6 updated to match (was still describing
+      the pre-decision "npm private org or GitHub Packages" + placeholder registry).
+      Token revocation is a dashboard/backend-account-management concern, already live
+      (see the account-management feature); no new code needed here.
+- [x] Runtime license/plan gate **re-verified**, not assumed carried over from Phase 8:
+      added `src/runtime/client.test.ts` → *"is genuinely a no-op end-to-end when the
+      plan is unlicensed (enabled:false): real capture modules fire, nothing is ever
+      queued or sent"* — deliberately does **not** override `errorCapture` with a fake,
+      so it exercises the real `ErrorCapture` (`window` `'error'` +
+      `'unhandledrejection'` listeners) through the real `emitEvent` seam against a
+      `configSource` returning `enabled:false`; asserts zero queued events and, via an
+      explicit `flush()`, zero calls to either transport. All 403 existing + 1 new core
+      test still pass (`npx vitest run`).
+- [x] npm **provenance** config in place (see above); sources excluded, only built
+      `dist/` + types ship (`files: ["dist"]`, confirmed by the `npm pack` audit above).
+- [ ] **Not done — the one remaining manual step.** Verifying a clean licensed project
+      installs and runs *from the actual npmjs.com registry* needs a real publish,
+      which needs a real `NPM_TOKEN`, which needs a human with npmjs.com account access.
+      Documented in full in **`docs/10-publishing-setup.md`**: (a) create the
+      `@codeskop` org on a plan supporting private packages, (b) generate an Automation
+      access token scoped to `@codeskop/*`, (c) add it as the `NPM_TOKEN` GitHub Actions
+      secret on `Codeskop-io/web-sdk`. **This cannot be done from this environment or
+      by an agent** — no npmjs.com credentials exist here and none should be created
+      here.
 
-**Exit gate** — ⬜ Published privately; a licensed token installs it, an unlicensed one is
-refused; runtime gate verified; tarball clean.
+**Exit gate** — 🟡 Partially checked: packaging, tooling, docs, and the runtime gate are
+genuinely done and verified; the actual private-registry publish is blocked on the one
+manual step above (`docs/10-publishing-setup.md`) — do not check this gate as fully ✅
+until a human completes it and a real `npm install @codeskop/tracker` from
+`registry.npmjs.org` with a licensed token has been confirmed to work end-to-end.
 > **Do not proceed to Phase 15 until this gate is checked.**
 
 ---

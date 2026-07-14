@@ -106,6 +106,39 @@ describe('CodeskopClient — emitEvent', () => {
     expect(queue.events).toHaveLength(0);
   });
 
+  it('is genuinely a no-op end-to-end when the plan is unlicensed (enabled:false): real capture modules fire, nothing is ever queued or sent (docs/04 §4.6 D11 layer 2)', async () => {
+    const queue = fakeQueue();
+    const fetchTransport = fakeTransport();
+    const beaconTransport = fakeTransport();
+    // Deliberately does NOT override errorCapture — the client constructs a real
+    // `ErrorCapture` that attaches real `window` listeners, so this exercises the
+    // actual capture -> emitEvent -> queue -> transport pipeline, not just the seam.
+    client = new CodeskopClient(config, {
+      installId: 'inst_test',
+      queue,
+      fetchTransport,
+      beaconTransport,
+      configSource: fakeConfigSource({ ...DEFAULT_REMOTE_CONFIG, enabled: false }),
+    });
+    setActiveClient(client);
+    await vi.waitFor(() => expect(client?.isActive()).toBe(false));
+
+    // A genuine uncaught error and a genuine unhandled rejection, dispatched exactly
+    // as a browser would — not a direct `emitEvent` call.
+    window.dispatchEvent(new ErrorEvent('error', { message: 'boom', error: new Error('boom') }));
+    const promise = Promise.reject(new Error('rejected'));
+    promise.catch(() => {});
+    window.dispatchEvent(new PromiseRejectionEvent('unhandledrejection', { promise, reason: new Error('rejected') }));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(queue.events).toHaveLength(0);
+
+    // An explicit flush still finds nothing to drain, so the transport is never invoked either.
+    await expect(client.flush()).resolves.toBe(true);
+    expect(fetchTransport.calls).toBe(0);
+    expect(beaconTransport.calls).toBe(0);
+  });
+
   it('never throws even when the queue rejects', async () => {
     const queue: QueueLike = {
       enqueue: () => Promise.reject(new Error('boom')),

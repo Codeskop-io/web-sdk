@@ -62,15 +62,18 @@ Two enforcement layers so the library is genuinely restricted:
 
 ### Layer 1 — Install access (private package + token)
 
-- `@codeskop/tracker` (and `-react`) are published to a **private registry** (a private
-  npm org scope or GitHub Packages), **not** the public npm registry.
+- `@codeskop/tracker` (and `-react`) are published to the **`@codeskop` scope on the
+  private npm registry** (`registry.npmjs.org`, `publishConfig.access: "restricted"`),
+  **not** the public npm registry — decided over GitHub Packages so customers use the
+  npm registry they already authenticate against for every other dependency.
 - Each licensed customer gets a **read-only install token tied to their active
-  subscription**. They add it to a project `.npmrc`:
+  subscription** (an npm granular access token scoped to the `@codeskop` packages,
+  issued/revoked from the dashboard). They add it to a project `.npmrc`:
 
   ```ini
   # .npmrc  (per licensed customer; token issued from the dashboard)
-  @codeskop:registry=https://registry.codeskop.com/
-  //registry.codeskop.com/:_authToken=${CODESKOP_TOKEN}
+  @codeskop:registry=https://registry.npmjs.org/
+  //registry.npmjs.org/:_authToken=${CODESKOP_TOKEN}
   ```
 
 - Tokens are **revocable** — churn/expiry revokes install access. CI reads the token

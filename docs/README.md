@@ -11,6 +11,10 @@ release plan lives one level up in [`../web-sdk-workflow.md`](../web-sdk-workflo
 | [04 · Security & Licensing](./04-security-and-licensing.md) | Public-key auth, origin binding (D10), kill-switch, **private licensed distribution (D11)** |
 | [05 · API Reference](./05-api-reference.md) | Public API surface (frozen in Phase 13, SemVer'd) |
 | [06 · Integration Guide](./06-integration-guide.md) | Licensed install (token), init, React, CDN, troubleshooting |
+| [07 · SemVer Policy](./07-semver-policy.md) | Breaking vs. safe change matrix, release process, deprecation window |
+| [08 · Security & Privacy Audit](./08-security-privacy-audit.md) | End-to-end audit against the built code: secret-key rejection, redaction, PII |
+| [09 · Supply Chain](./09-supply-chain.md) | Dependency/license audit, SBOM, zero-runtime-deps verification, CSP |
+| [10 · Publishing Setup](./10-publishing-setup.md) | **Manual, human-only step:** npmjs.com org, Automation token, `NPM_TOKEN` CI secret |
 
 ## Context
 

@@ -13,12 +13,16 @@
 
 ## 6.2 Install (private registry + token)
 
+`@codeskop/tracker` (and `-react`) are published to the `@codeskop` scope on the
+**private npm registry** (`registry.npmjs.org`, restricted access) — the public npm
+registry never carries these packages.
+
 Add a project `.npmrc` (do **not** commit the token — inject it from an env var/CI secret):
 
 ```ini
 # .npmrc
-@codeskop:registry=https://registry.codeskop.com/
-//registry.codeskop.com/:_authToken=${CODESKOP_TOKEN}
+@codeskop:registry=https://registry.npmjs.org/
+//registry.npmjs.org/:_authToken=${CODESKOP_TOKEN}
 ```
 
 ```bash
