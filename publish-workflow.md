@@ -230,11 +230,31 @@ against `docs.npmjs.com`'s unpublish policy directly, not assumed):
 
 ## 6. Current status
 
-- `ci.yml` is live and green on `development`'s pull requests (verified against the
-  real `Codeskop-io/web-sdk` remote — see the PR referenced in this phase's own commit
-  history for the run link).
-- `publish-dev.yml` and `release.yml` are wired and correct but have never actually
-  published anything — both are blocked on §4's `NPM_TOKEN` secret, which is a
-  deliberate, human-only manual step, not an oversight. No tag has been pushed to
-  exercise `release.yml` for real, on purpose — doing so before `NPM_TOKEN` exists
-  would only reproduce the same, already-understood failure.
+- `ci.yml` is confirmed live and green against the real `Codeskop-io/web-sdk` remote —
+  verified with a throwaway PR (opened, run to completion, then closed, with its
+  branch deleted): [run
+  29339218324](https://github.com/Codeskop-io/web-sdk/actions/runs/29339218324), all
+  17 steps green (lint → typecheck → test+coverage → build → typecheck/test/build for
+  the react adapter → `api:check:all` → both size budgets → Playwright e2e).
+  - That verification run caught two real bugs the first (also-throwaway) attempt
+    surfaced, both now fixed on `development`: (1) all three workflows ran the react
+    adapter's typecheck/test *before* core's build, but the adapter resolves
+    `@codeskop/tracker` through a workspace symlink whose `exports`/`types` point at
+    `dist/`, which doesn't exist yet on a clean checkout — reordered so core builds
+    first; (2) three integration test files
+    (`src/config/remoteConfigClient.integration.test.ts`,
+    `src/transport/fetchTransport.integration.test.ts`,
+    `src/transport/beaconTransport.test.ts`) computed their "is the mock server
+    reachable" flag inside a `beforeAll`, but `describe.runIf`/`describe.skipIf`
+    evaluate synchronously at file-collection time, before any `beforeAll` runs — so
+    the gate always saw the stale `true` default and ran for real against a
+    nonexistent server on any checkout without one manually left running. Fixed with a
+    top-level `await` instead. Neither bug was previously catchable — there was no CI
+    to run either workflow before this phase.
+- `publish-dev.yml` and `release.yml` share the identical gate suite (§1.1) that just
+  passed for real in the above run, so both are expected to pass their own gate stage
+  too — but neither has ever actually published anything, and **cannot** yet: both are
+  blocked on §4's `NPM_TOKEN` secret, which is a deliberate, human-only manual step,
+  not an oversight. No tag has been pushed to exercise `release.yml` end-to-end, on
+  purpose — doing so before `NPM_TOKEN` exists would only reproduce the same,
+  already-understood, correctly-loud failure.
