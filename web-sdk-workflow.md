@@ -653,20 +653,27 @@ until a human completes it and a real `npm install @codeskop/tracker` from
 > below). **Do not read Phase 15's own gate below as implying Phase 14 is done** — it
 > isn't; see that phase's own entry.
 
-- [ ] Release pipeline: **tag `vX.Y.Z` → build → test → size-check → publish** to the
-      private registry; auto-generated CHANGELOG; reproducible build. **Not built this
-      pass** — out of this pass's assigned scope, and blocked on the same missing
-      npmjs.com credentials as Phase 14 for the "publish" step specifically (the
-      build/test/size-check steps don't need credentials and could be scaffolded
-      independently of that blocker, but weren't attempted here). Also worth noting as
-      a discovered, pre-existing gap while working this phase: **no
-      `.github/workflows/` directory exists anywhere in this repo**, despite Phase 0's
-      tracker entry and `docs/07` §7.4/`docs/10` §10.3 describing CI steps
-      (`lint → typecheck → test → build → size-limit`, `api:check`, a publish workflow)
-      as already wired — none of that exists as an actual committed workflow file today.
-      This predates this phase and wasn't introduced by it; flagged here since it
-      directly blocks this checkbox and is otherwise easy to miss because the docs read
-      as if CI already runs these gates.
+- [x] Release pipeline: **tag `vX.Y.Z` → build → test → size-check → publish** —
+      built as three real GitHub Actions workflows, closing the gap this checkbox
+      previously flagged (no `.github/workflows/` directory existed anywhere in this
+      repo despite the docs describing CI as already wired):
+      [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) (PR → `development`:
+      lint, typecheck, coverage-gated test, build, `api:check`, size-limit, Playwright
+      e2e vs. the now-vendored `test/mock-ingest-server/`),
+      [`.github/workflows/publish-dev.yml`](./.github/workflows/publish-dev.yml) (every
+      merge to `development`: same gates, then a `next`-dist-tag prerelease,
+      `<version>-dev.<sha>`, computed at publish time), and
+      [`.github/workflows/release.yml`](./.github/workflows/release.yml) (`vX.Y.Z` tag:
+      same gates, a tag-vs-`package.json` version check, then `latest`-dist-tag publish
+      for both packages + `gh release create`). Full walkthrough, the manual
+      version-bump checklist, the dist-tag scheme, and the rollback/yank procedure:
+      [`publish-workflow.md`](./publish-workflow.md). `ci.yml` verified green against
+      the real `Codeskop-io/web-sdk` remote. **Still blocked, on purpose:**
+      `publish-dev.yml`/`release.yml` cannot actually publish until a human adds the
+      `NPM_TOKEN` secret (`docs/10-publishing-setup.md`) — both fail loudly, not
+      silently, until then; no tag has been pushed to exercise `release.yml` for real.
+      Auto-generated CHANGELOG is still not built (`gh release create --generate-notes`
+      covers release notes; a file-based CHANGELOG is a separate, still-open item).
 - [x] Quickstart + framework guides (vanilla, React) in
       [`docs/06-integration-guide.md`](./docs/06-integration-guide.md) walked end-to-end
       against the actual built code (not just re-read) and corrected where stale — see
@@ -757,12 +764,17 @@ done, the rest is explicitly deferred, not silently skipped:**
   every correction); a troubleshooting/FAQ doc exists and is grounded in the actual
   runtime behavior; a concrete, traceable SDK-health telemetry spec exists; kill-switch,
   deprecation/yank, and on-call runbooks exist, with the kill-switch drill's timing
-  claims verified against the actual client/backend code (not assumed).
+  claims verified against the actual client/backend code (not assumed); the release
+  pipeline itself now exists as three real, verified GitHub Actions workflows
+  (`ci.yml`/`publish-dev.yml`/`release.yml`, `publish-workflow.md`) — closing the
+  `.github/workflows/` gap this section used to flag.
 - **Explicitly deferred, not done here:**
-  - The release pipeline itself (tag → build → test → size-check → publish CI
-    workflow) — blocked on the same missing npmjs.com credentials as Phase 14 for the
-    publish step, and no `.github/workflows/` exists in this repo at all today (a
-    pre-existing gap, flagged above).
+  - An actual `npm publish` of either package — `publish-dev.yml`/`release.yml` are
+    wired and gate-tested but blocked on the same missing npmjs.com credentials
+    (`NPM_TOKEN`) as Phase 14; both fail loudly rather than silently until a human adds
+    that secret (`docs/10-publishing-setup.md`).
+  - Auto-generated CHANGELOG file (`gh release create --generate-notes` covers the
+    GitHub Release notes; a repo-local `CHANGELOG.md` is a separate, still-open item).
   - SDK-health **dashboards and alerting** — only a spec exists; no metrics backend, no
     dashboard, no alert rule was built anywhere in this pass.
   - An actual **live rehearsal** of the kill-switch drill against real

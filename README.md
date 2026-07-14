@@ -14,6 +14,10 @@ the web counterpart to the [Android SDK](../android) and a client of the **same*
 
 - **Build → release workflow (start here):** [`web-sdk-workflow.md`](./web-sdk-workflow.md)
   — the single, phase-gated plan from `development` to a published, licensed release.
+- **Publish & release automation:** [`publish-workflow.md`](./publish-workflow.md) —
+  the three GitHub Actions workflows (`ci.yml`, `publish-dev.yml`, `release.yml`), the
+  version-bump-then-tag release process, the `next`/`latest` dist-tag scheme, and the
+  rollback/yank procedure.
 - **Reference docs:** [`docs/`](./docs) — architecture, event model, security &
   licensing, API reference, integration guide.
 

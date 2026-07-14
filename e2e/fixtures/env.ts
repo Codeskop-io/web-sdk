@@ -1,11 +1,17 @@
 /**
  * Test-only server plumbing for the Phase 4 e2e suite (`web-sdk-workflow.md`):
- * spawns the real `backend/mock-ingest-server/server.py` process, and serves
+ * spawns the vendored `test/mock-ingest-server/server.py` process, and serves
  * a same-origin static+proxy server in front of it. The proxy exists solely
  * because the mock server sends no CORS headers (it is a development aid,
  * not a spec-complete backend) — same-origin keeps the SDK's real `fetch`/
  * `sendBeacon` calls from ever hitting a browser CORS block, while every byte
  * still round-trips through the actual mock process over a real socket.
+ *
+ * This is now a **separate repo** from `backend` (Phase 16/release-engineering),
+ * so it can no longer reach across to `../backend` in CI — `server.py` (stdlib
+ * Python only) is vendored into this repo at `test/mock-ingest-server/`. It may
+ * drift from backend's own copy over time; re-sync manually if the ingest
+ * contract's mock behavior changes there.
  */
 import { spawn, type ChildProcess } from 'node:child_process';
 import http from 'node:http';
@@ -15,7 +21,7 @@ import * as esbuild from 'esbuild';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '../..');
-const MOCK_SERVER_SCRIPT = path.resolve(REPO_ROOT, '../backend/mock-ingest-server/server.py');
+const MOCK_SERVER_SCRIPT = path.resolve(REPO_ROOT, 'test/mock-ingest-server/server.py');
 
 /** Asks the OS for a free TCP port by binding to port 0 and reading back what it picked. */
 async function getFreePort(): Promise<number> {
@@ -53,7 +59,7 @@ export interface MockIngestServer {
   close(): Promise<void>;
 }
 
-/** Spawns the real Python mock ingest server (`backend/mock-ingest-server/server.py`) on a free local port. */
+/** Spawns the real Python mock ingest server (`test/mock-ingest-server/server.py`, vendored from `backend`) on a free local port. */
 export async function startMockIngestServer(): Promise<MockIngestServer> {
   const port = await getFreePort();
   const url = `http://127.0.0.1:${port}`;

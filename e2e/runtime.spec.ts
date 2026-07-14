@@ -1,7 +1,7 @@
 /**
  * Phase 4 e2e proof (`web-sdk-workflow.md`): a real Chromium page, loading a
  * tiny built bundle, against the real mock ingest server
- * (`backend/mock-ingest-server`) — not jsdom, not a stubbed `fetch`.
+ * (`test/mock-ingest-server`, vendored from `backend`) — not jsdom, not a stubbed `fetch`.
  *
  * Confirms:
  *  - `init` is cheap (negligible synchronous cost).

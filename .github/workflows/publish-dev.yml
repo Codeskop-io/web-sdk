@@ -1,0 +1,132 @@
+# Every merge to `development` publishes a PRERELEASE build to npm under the
+# `next` dist-tag — no manual version bump needed for this (see release.yml for
+# the manual-bump path that ships to `latest`). The published version is
+# computed at publish time as `<package.json version>-dev.<short-sha>`, so
+# `next` always resolves to the newest `development` commit without anyone
+# touching package.json for it.
+#
+# Runs the same gate suite as ci.yml (kept in sync manually — this repo has no
+# reusable/composite workflow for it, matching the sibling repos' convention
+# of self-contained workflow files) before ever attempting to publish.
+#
+# Requires the `NPM_TOKEN` repository secret (an npm Automation token scoped to
+# `@codeskop/*` — see docs/10-publishing-setup.md). If it isn't set yet, the
+# publish step fails loudly with an explicit error, not a silent skip.
+name: Publish (dev prerelease)
+
+on:
+  push:
+    branches: [development]
+
+concurrency:
+  group: publish-dev
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # required for `npm publish`'s provenance attestation (publishConfig.provenance: true)
+
+jobs:
+  publish:
+    name: Gate, then publish prerelease to the `next` dist-tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org/
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies (root + workspaces)
+        run: npm ci
+
+      - name: Install Playwright's Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck (core)
+        run: npm run typecheck
+
+      - name: Typecheck (react adapter)
+        run: npm run typecheck --workspace=@codeskop/tracker-react
+
+      - name: Test + coverage gate (core)
+        run: npm test
+
+      - name: Test + coverage gate (react adapter)
+        run: npm run test --workspace=@codeskop/tracker-react
+
+      - name: Build (core)
+        run: npm run build
+
+      - name: Build (react adapter)
+        run: npm run build --workspace=@codeskop/tracker-react
+
+      - name: API report check (core + react adapter)
+        run: npm run api:check:all
+
+      - name: Bundle-size budget (core)
+        run: npm run size
+
+      - name: Bundle-size budget (react adapter)
+        run: npm run size --workspace=@codeskop/tracker-react
+
+      - name: Playwright e2e (vs mock ingest server)
+        run: npx playwright test
+
+      # Computed here, not read from a prior step's mutated package.json —
+      # the version bump below happens in this same job, after every gate has
+      # already passed against the *real* package.json version.
+      - name: Compute prerelease version
+        id: version
+        run: |
+          base="$(node -p "require('./package.json').version")"
+          sha="$(git rev-parse --short HEAD)"
+          version="${base}-dev.${sha}"
+          echo "Computed prerelease version: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # Rewrites just the `version` field in-place in both package.json files
+      # for this publish only — never committed back to `development`.
+      - name: Stamp prerelease version (core + react adapter)
+        env:
+          DEV_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            for (const p of ['package.json', 'react/package.json']) {
+              const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
+              pkg.version = process.env.DEV_VERSION;
+              fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + '\n');
+            }
+          "
+
+      - name: Verify NPM_TOKEN is configured
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "::error::NPM_TOKEN repository secret is not set — cannot publish to npm."
+            echo "::error::See docs/10-publishing-setup.md for how to create an npm Automation token"
+            echo "::error::scoped to @codeskop/* and add it as the 'NPM_TOKEN' secret under"
+            echo "::error::Settings -> Secrets and variables -> Actions on Codeskop-io/web-sdk."
+            exit 1
+          fi
+
+      - name: Publish core to the 'next' dist-tag
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --tag next --provenance --access restricted
+
+      - name: Publish react adapter to the 'next' dist-tag
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --workspace=@codeskop/tracker-react --tag next --provenance --access restricted

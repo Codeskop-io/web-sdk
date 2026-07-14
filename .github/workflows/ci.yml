@@ -1,0 +1,93 @@
+# Gate on pull requests targeting `development` — same principle as the backend
+# and landing repos: nothing merges without passing lint, typecheck, the 80%
+# coverage gate, a real build, the gzipped bundle-size budget, and a real-Chromium
+# e2e pass against the mock ingest server.
+#
+# Runs the same checks for both publishable units: the core (`@codeskop/tracker`,
+# root) and the React adapter (`@codeskop/tracker-react`, `react/`). Uses each
+# workspace's full package name (`--workspace=@codeskop/tracker-react`), not its
+# directory (`--workspace=react`) — the latter also matches the nested
+# `react/example` demo workspace and fails on its missing scripts.
+name: CI
+
+on:
+  pull_request:
+    branches: [development]
+
+# Supersede in-flight runs for the same PR to save minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Lint, typecheck, test, build, size, e2e
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # The e2e suite spawns the vendored mock ingest server
+      # (`test/mock-ingest-server/server.py`) as a real subprocess.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies (root + workspaces)
+        run: npm ci
+
+      - name: Install Playwright's Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck (core)
+        run: npm run typecheck
+
+      - name: Typecheck (react adapter)
+        run: npm run typecheck --workspace=@codeskop/tracker-react
+
+      # `vitest run --coverage` fails the job itself when a threshold in
+      # vitest.config.ts (80% lines/statements/functions/branches) isn't met —
+      # this is the coverage gate, not a separate step.
+      - name: Test + coverage gate (core)
+        run: npm test
+
+      - name: Test + coverage gate (react adapter)
+        run: npm run test --workspace=@codeskop/tracker-react
+
+      - name: Build (core)
+        run: npm run build
+
+      - name: Build (react adapter)
+        run: npm run build --workspace=@codeskop/tracker-react
+
+      # Public API surface freeze (Phase 13): fails on any signature drift from
+      # the committed baseline (`etc/tracker.api.md` / `react/etc/tracker-react.api.md`).
+      - name: API report check (core + react adapter)
+        run: npm run api:check:all
+
+      - name: Bundle-size budget (core)
+        run: npm run size
+
+      - name: Bundle-size budget (react adapter)
+        run: npm run size --workspace=@codeskop/tracker-react
+
+      # Real Chromium, against the vendored mock ingest server — not jsdom, not
+      # a stubbed fetch. `e2e/staging-smoke.spec.ts` is opt-in (skips unless
+      # STAGING_TEST_KEY / PRODUCTION_TEST_KEY is set) and never runs live here.
+      - name: Playwright e2e (vs mock ingest server)
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

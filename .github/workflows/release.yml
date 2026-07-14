@@ -1,0 +1,148 @@
+# A semver tag (`vX.Y.Z`, no `v` in package.json itself) cuts a real release:
+# runs the same full gate suite as ci.yml/publish-dev.yml (kept in sync
+# manually — see the note in publish-dev.yml), verifies the tag actually
+# matches the version that was manually bumped into package.json before
+# tagging, publishes both packages to the `latest` dist-tag, then creates the
+# GitHub Release — mirroring the backend/landing repos' `gh release create
+# "$GITHUB_REF_NAME" --generate-notes --title "$GITHUB_REF_NAME"` convention.
+#
+# Requires the `NPM_TOKEN` repository secret (see docs/10-publishing-setup.md).
+# If it isn't set yet, the publish step fails loudly with an explicit error,
+# not a silent skip.
+name: Release (production)
+
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: release-production
+  cancel-in-progress: false
+
+permissions:
+  contents: write # create the GitHub Release
+  id-token: write # required for `npm publish`'s provenance attestation (publishConfig.provenance: true)
+
+jobs:
+  release:
+    name: Gate, verify version, publish to 'latest', tag GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      # `on: push: tags` checks out the tagged commit — the release is built
+      # from exactly what was tagged, never a branch tip.
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org/
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies (root + workspaces)
+        run: npm ci
+
+      - name: Install Playwright's Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck (core)
+        run: npm run typecheck
+
+      - name: Typecheck (react adapter)
+        run: npm run typecheck --workspace=@codeskop/tracker-react
+
+      - name: Test + coverage gate (core)
+        run: npm test
+
+      - name: Test + coverage gate (react adapter)
+        run: npm run test --workspace=@codeskop/tracker-react
+
+      - name: Build (core)
+        run: npm run build
+
+      - name: Build (react adapter)
+        run: npm run build --workspace=@codeskop/tracker-react
+
+      - name: API report check (core + react adapter)
+        run: npm run api:check:all
+
+      - name: Bundle-size budget (core)
+        run: npm run size
+
+      - name: Bundle-size budget (react adapter)
+        run: npm run size --workspace=@codeskop/tracker-react
+
+      - name: Playwright e2e (vs mock ingest server)
+        run: npx playwright test
+
+      # The one manual step before tagging is bumping package.json's version
+      # (core) and `src/core/version.ts`'s `SDK_VERSION` literal (which mirrors
+      # *core's* package.json specifically, per that file's own doc comment)
+      # to match — this fails the release loudly instead of shipping a
+      # tag/package mismatch or a stale telemetry version if that step was
+      # missed or done incompletely. The tag names the overall SDK release and
+      # is authoritative for **core's** version; the react adapter is
+      # versioned independently (`docs/07-semver-policy.md` §7.1 — separate
+      # package, separate SemVer line, only a wide `peerDependencies` range
+      # ties them together), so a react/package.json version that differs
+      # from the tag is expected in that model and only warned about, not
+      # failed.
+      - name: Verify tag matches package.json version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          core_version="$(node -p "require('./package.json').version")"
+          react_version="$(node -p "require('./react/package.json').version")"
+
+          fail=0
+          if [ "$tag" != "$core_version" ]; then
+            echo "::error::Tag v$tag does not match package.json version $core_version. Bump package.json to $tag before tagging. See publish-workflow.md."
+            fail=1
+          fi
+
+          sdk_version_literal="$(grep -o "SDK_VERSION = '[^']*'" src/core/version.ts | sed "s/SDK_VERSION = '//;s/'//")"
+          if [ "$tag" != "$sdk_version_literal" ]; then
+            echo "::error::Tag v$tag does not match src/core/version.ts's SDK_VERSION literal ($sdk_version_literal). Bump SDK_VERSION to $tag in the same commit as package.json. See publish-workflow.md."
+            fail=1
+          fi
+
+          if [ "$tag" != "$react_version" ]; then
+            echo "::warning::react/package.json version ($react_version) differs from tag v$tag — expected if the react adapter's independent SemVer line (docs/07-semver-policy.md §7.1) hasn't moved this release; it will still publish at its own current version $react_version."
+          fi
+
+          if [ "$fail" = "1" ]; then
+            exit 1
+          fi
+          echo "Tag v$tag matches package.json and SDK_VERSION."
+
+      - name: Verify NPM_TOKEN is configured
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "::error::NPM_TOKEN repository secret is not set — cannot publish to npm."
+            echo "::error::See docs/10-publishing-setup.md for how to create an npm Automation token"
+            echo "::error::scoped to @codeskop/* and add it as the 'NPM_TOKEN' secret under"
+            echo "::error::Settings -> Secrets and variables -> Actions on Codeskop-io/web-sdk."
+            exit 1
+          fi
+
+      - name: Publish core to the 'latest' dist-tag
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --tag latest --provenance --access restricted
+
+      - name: Publish react adapter to the 'latest' dist-tag
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --workspace=@codeskop/tracker-react --tag latest --provenance --access restricted
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --generate-notes --title "$GITHUB_REF_NAME"

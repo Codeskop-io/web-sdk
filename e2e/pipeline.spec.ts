@@ -2,7 +2,7 @@
  * Phase 10 e2e proof (`web-sdk-workflow.md`): the whole pipeline — network
  * (fetch failure), uncaught-error, unhandled-rejection, and heartbeat
  * capture — proven end-to-end in a real Chromium page against the real
- * mock ingest server (`backend/mock-ingest-server/server.py`), all the way
+ * mock ingest server (`test/mock-ingest-server/server.py`, vendored from `backend`), all the way
  * through to that server's `/__debug/received` state: not just "the mock
  * returned 200", but *which* event landed with *which* user and batch
  * context (`docs/03-capture-and-event-model.md` §3.2/§3.3).
