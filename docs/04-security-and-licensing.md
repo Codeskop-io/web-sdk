@@ -1,9 +1,11 @@
 # 4. Web SDK — Security, Restrictions & Licensing
 
-> The web SDK runs inside untrusted, publicly-inspectable pages, and — unlike the
-> Android SDK — it is a **commercial, licensed** library, not a free public dependency.
-> This doc covers both: the **runtime** security posture (mirroring Android) and the
-> **distribution/licensing** restrictions that make it "not free" (D11).
+> The web SDK runs inside untrusted, publicly-inspectable pages. Like Android, it is
+> **published publicly and free to install** (D11, revised) — the restriction lives
+> entirely on the **ingest side**: without an active plan's public key, the SDK
+> installs and initializes but never captures or sends anything. This doc covers the
+> **runtime** security posture (mirroring Android) and how that server-side gate makes
+> the library commercially restricted despite open distribution.
 
 ## 4.1 Threat model in one line
 
@@ -74,40 +76,36 @@ The web equivalent:
 - The **remote kill-switch** (`GET /v1/config` → `enabled:false`) disables all capture in
   the field without a customer redeploy.
 
-## 4.6 Distribution & licensing (D11) — "not free"
+## 4.6 Distribution & licensing (D11, revised 2026-07-15) — restricted at ingest, not install
 
-Two enforcement layers so the library is genuinely restricted:
+**Original D11** published `@codeskop/tracker`/`-react` to a private, token-gated npm
+scope. That was reversed before the first real publish (nothing had shipped to
+npmjs.com yet): the code is already fully inspectable in any browser running it, so a
+private registry never protected anything — it only added install friction (per-customer
+tokens, `.npmrc` management, a paid npm org) with no corresponding security benefit.
+Android was never gated this way either (public Maven Central since day one). The
+revised model puts both SDKs on the same footing:
 
-### Layer 1 — Install access (private package + token)
+### Public install, no gate
 
-- `@codeskop/tracker` (and `-react`) are published to the **`@codeskop` scope on the
-  private npm registry** (`registry.npmjs.org`, `publishConfig.access: "restricted"`),
-  **not** the public npm registry — decided over GitHub Packages so customers use the
-  npm registry they already authenticate against for every other dependency.
-- Each licensed customer gets a **read-only install token tied to their active
-  subscription** (an npm granular access token scoped to the `@codeskop` packages,
-  issued/revoked from the dashboard). They add it to a project `.npmrc`:
+- `@codeskop/tracker` (and `-react`) publish to the **public npm registry**
+  (`publishConfig.access: "public"`), MIT-licensed. `npm install @codeskop/tracker` works
+  for anyone, no token, no `.npmrc` entry, no org membership.
 
-  ```ini
-  # .npmrc  (per licensed customer; token issued from the dashboard)
-  @codeskop:registry=https://registry.npmjs.org/
-  //registry.npmjs.org/:_authToken=${CODESKOP_TOKEN}
-  ```
+### Runtime plan gate (the actual restriction)
 
-- Tokens are **revocable** — churn/expiry revokes install access. CI reads the token
-  from a secret, never committed.
-
-### Layer 2 — Runtime plan gate
-
-- Even with the package installed, the SDK's behaviour is **server-gated**: `GET /v1/config`
-  returns the plan's entitlements. An **inactive/unlicensed plan** yields
-  `enabled:false` → the SDK degrades to a **no-op** (it initializes, never captures,
-  never sends — the same shape as Android's `:tracker-noop`).
+- The SDK's behaviour is **server-gated**: `GET /v1/config` returns the plan's
+  entitlements for the public key passed at `init`. An **inactive/unlicensed
+  plan — or no valid key at all** — yields `enabled:false` → the SDK degrades to a
+  **no-op** (it initializes, never captures, never sends — the same shape as Android's
+  `:tracker-noop`).
 - Feature tiers (`features`, `sample_rates`, `max_queue_mb`) are applied per plan, so a
   lower tier is functionally thinner even while installed.
 
-> **Net effect:** you cannot obtain the library without a licensed token, and a copy
-> obtained illicitly still won't function without an active plan on a registered origin.
+> **Net effect:** anyone can `npm install` and read the source; nobody gets working
+> capture without a valid public key tied to an active plan. This is the same
+> boundary the mobile SDK already relies on — the package is free, the **ingest** is
+> the product.
 
 ## 4.7 Supply-chain integrity (Workflow Phase 13–14)
 
@@ -125,4 +123,4 @@ Two enforcement layers so the library is genuinely restricted:
 | Identity binding | `{package, signing_cert_sha256}` | `{origin}` via unforgeable `Origin` header (D10) |
 | Feature gating | Server-side via `GET /v1/config` | Same |
 | Kill-switch | `enabled:false` | Same |
-| Distribution | **Public** (Maven Central), free to install | **Private + licensed** token; runtime no-op if unlicensed (D11) |
+| Distribution | **Public** (Maven Central), free to install | **Public** (npm, MIT), free to install; runtime no-op if unlicensed (D11) |

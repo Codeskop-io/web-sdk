@@ -1,9 +1,13 @@
 # `@codeskop/tracker-react`
 
+[![npm version](https://img.shields.io/npm/v/@codeskop/tracker-react.svg)](https://www.npmjs.com/package/@codeskop/tracker-react)
+[![license](https://img.shields.io/npm/l/@codeskop/tracker-react.svg)](./LICENSE)
+
 First-class React integration for [`@codeskop/tracker`](https://www.npmjs.com/package/@codeskop/tracker)
-— a provider, an error boundary, and a hook. Same commercial, licensed
-distribution as the core package (private registry + per-customer token +
-runtime plan gate) — see
+— a provider, an error boundary, and a hook. Same free, MIT-licensed public
+distribution as the core package — installing needs no token or signup; a
+runtime plan gate is what actually restricts capture (invalid/unlicensed key
+⇒ safe no-op) — see
 [`docs/04-security-and-licensing.md`](https://github.com/Codeskop-io/web-sdk/blob/main/docs/04-security-and-licensing.md).
 
 ## Install
@@ -12,7 +16,7 @@ runtime plan gate) — see
 npm install @codeskop/tracker @codeskop/tracker-react
 ```
 
-Requires the same private-registry `.npmrc` as the core package — see
+No `.npmrc` or install token needed — both packages are public. See
 [`docs/06-integration-guide.md`](https://github.com/Codeskop-io/web-sdk/blob/main/docs/06-integration-guide.md).
 
 ## Usage

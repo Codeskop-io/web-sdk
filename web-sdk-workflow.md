@@ -553,9 +553,30 @@ package and the new `react/` workspace; the core's 12 KB budget is unaffected.
 
 ---
 
-## Phase 14 — Private packaging & licensed publishing
+## Phase 14 — Public packaging & key-gated publishing
 
-**Goal:** the SDK is fetchable **only by licensed customers** (D11).
+> **2026-07-15 revision: D11 reversed.** The checklist below (all still historically
+> accurate) describes the *original* plan — private npm scope + per-customer install
+> token. That was reversed before any real publish happened: the SDK's source is
+> already fully inspectable in any browser running it, so a private registry added
+> install friction (paid npm org, per-customer tokens, `.npmrc` management) without
+> protecting anything. The runtime plan gate (last checklist item below) was always
+> the actual restriction and is unchanged — it now stands alone, the same model
+> Android already uses (public Maven Central, gated by the key server-side). See
+> `docs/04-security-and-licensing.md` §4.6 for the full writeup.
+>
+> **What actually changed in code:** both `package.json`s now carry
+> `publishConfig.access: "public"` and `"license": "MIT"` (was `"restricted"` /
+> `"UNLICENSED"`); an MIT `LICENSE` file was added to both package roots; the
+> per-customer `.npmrc`/`CODESKOP_TOKEN` flow was removed from `docs/06` §6.2 and
+> `docs/11` §11.1; `docs/10-publishing-setup.md` §10.2(a) no longer requires a paid npm
+> org (public scoped packages are free); both `README.md`s and `publish-workflow.md` /
+> the `publish-dev.yml`/`release.yml` `--access` flags were updated to match. Nothing
+> in the runtime code (`src/`) changed — the plan gate was already fully implemented
+> and tested (see the last checklist item below).
+
+**Original goal (superseded):** the SDK is fetchable **only by licensed customers**
+(D11, original).
 
 - [x] User decision: publish to the **private npm registry** (`registry.npmjs.org`,
       `@codeskop` scope), not GitHub Packages. Both `package.json` (core) and
@@ -633,10 +654,13 @@ package and the new `react/` workspace; the core's 12 KB budget is unaffected.
       here.
 
 **Exit gate** — 🟡 Partially checked: packaging, tooling, docs, and the runtime gate are
-genuinely done and verified; the actual private-registry publish is blocked on the one
-manual step above (`docs/10-publishing-setup.md`) — do not check this gate as fully ✅
-until a human completes it and a real `npm install @codeskop/tracker` from
-`registry.npmjs.org` with a licensed token has been confirmed to work end-to-end.
+genuinely done and verified (updated 2026-07-15 for the public-distribution reversal —
+`publishConfig.access: "public"`, MIT license, no install-token flow); the actual
+publish is still blocked on the one manual step above (`docs/10-publishing-setup.md`)
+— do not check this gate as fully ✅ until a human completes it and a real
+`npm install @codeskop/tracker` from `registry.npmjs.org` (no token, no `.npmrc` entry)
+has been confirmed to work end-to-end, followed by an init against both a licensed and
+an unlicensed key to confirm the runtime gate is what's actually restricting capture.
 > **Do not proceed to Phase 15 until this gate is checked.**
 
 ---

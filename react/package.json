@@ -4,9 +4,9 @@
   "description": "First-class React integration for @codeskop/tracker — a provider, an error boundary, and a hook.",
   "type": "module",
   "sideEffects": false,
-  "license": "UNLICENSED",
+  "license": "MIT",
   "publishConfig": {
-    "access": "restricted",
+    "access": "public",
     "registry": "https://registry.npmjs.org/",
     "provenance": true
   },

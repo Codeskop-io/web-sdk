@@ -1,20 +1,21 @@
 # 6. Web SDK — Integration Guide
 
-> How a **licensed** customer installs and integrates `@codeskop/tracker`. Because the
-> package is private (D11), installation requires a subscription-tied token.
+> How to install and integrate `@codeskop/tracker`. The package is **public and free
+> to install** (D11, revised 2026-07-15) — the only thing gating real capture is an
+> active Codeskop plan's public key, checked server-side. See
+> [`docs/04-security-and-licensing.md`](./04-security-and-licensing.md) §4.6.
 >
 > Verified against what is actually built as of Workflow Phase 15 (walked as a new
-> licensed developer integrating today, against `src/`, `react/src/`, and the real
-> `dist/` output — not just against the docs' own prior wording). See
+> developer integrating today, against `src/`, `react/src/`, and the real `dist/`
+> output — not just against the docs' own prior wording). See
 > [`06 revision note`](#69-revision-note-phase-15) for exactly what changed and why.
 
 ## 6.1 Prerequisites
 
 - An active Codeskop subscription and a **public ingest key** (`cs_*_pk_…`) from the
-  dashboard.
-- A **package install token** (issued from the dashboard; tied to your subscription —
-  see [`docs/04`](./04-security-and-licensing.md) §4.6 for how this differs from the
-  org-side Automation token in [`docs/10`](./10-publishing-setup.md)).
+  dashboard. Without one (or with an inactive plan), the SDK installs and initializes
+  but never captures or sends anything — see §4.6's runtime plan gate.
+- **Not required:** any npm token or `.npmrc` entry — the package is public.
 - **Not required today:** a registered web origin. Origin *binding* (D10) is designed
   but **not implemented server-side yet** — there is no allowlist field, no API/dashboard
   way to set one, and no enforcement in the backend (confirmed against
@@ -23,22 +24,12 @@
   security boundary until this ships. See §6.7 for what CORS behavior to actually expect
   in the meantime.
 
-## 6.2 Install (private registry + token)
+## 6.2 Install
 
-`@codeskop/tracker` (and `-react`) are published to the `@codeskop` scope on the
-**private npm registry** (`registry.npmjs.org`, restricted access) — the public npm
-registry never carries these packages.
-
-Add a project `.npmrc` (do **not** commit the token — inject it from an env var/CI secret):
-
-```ini
-# .npmrc
-@codeskop:registry=https://registry.npmjs.org/
-//registry.npmjs.org/:_authToken=${CODESKOP_TOKEN}
-```
+`@codeskop/tracker` (and `-react`) are published to the **public npm registry** under
+the `@codeskop` scope — no token, no `.npmrc` entry, no org membership required.
 
 ```bash
-export CODESKOP_TOKEN=…   # from the dashboard; in CI use a secret
 npm install @codeskop/tracker
 ```
 
@@ -165,14 +156,12 @@ init({
 ## 6.7 Troubleshooting
 
 A quick table for the most common issues; see
-[`11-troubleshooting-faq.md`](./11-troubleshooting-faq.md) for the full FAQ (token
-setup, "no events showing up" broken down by root cause, redaction config, and
-React-specific gotchas).
+[`11-troubleshooting-faq.md`](./11-troubleshooting-faq.md) for the full FAQ ("no events
+showing up" broken down by root cause, redaction config, and React-specific gotchas).
 
 | Symptom | Likely cause |
 |---------|--------------|
-| `npm install` 401/403 | Missing/expired `CODESKOP_TOKEN`, or subscription inactive — §11.1 |
-| SDK initializes but nothing arrives | Key is a `cs_*_sk_` (rejected fail-soft), plan inactive/unlicensed (`enabled:false` → no-op), or the event was sampled out — §11.2 |
+| SDK initializes but nothing arrives | Missing/invalid key, key is a `cs_*_sk_` (rejected fail-soft), plan inactive/unlicensed (`enabled:false` → no-op), or the event was sampled out — §11.2 |
 | Events missing on the dashboard | Kill-switch is tripped (`enabled:false`) — note this is only re-checked on the **next page load/`init()`**, not live in an already-open tab, see §11.2 — or the feature is gated off for your plan |
 | CORS error on ingest | **Not** an origin-allowlist rejection today — that mechanism isn't implemented server-side yet (§6.1). Check for an ad-blocker/privacy extension, a restrictive CSP `connect-src`, or a genuinely unreachable `endpoint` instead — §11.2 |
 | No timing breakdown, only `duration_ms` | The API server didn't send `Timing-Allow-Origin` |
@@ -217,3 +206,10 @@ part of Workflow Phase 15 and corrected where it had drifted:
   (`docs/08-security-privacy-audit.md` §8.6 — the two config fields that would have
   provided it, `captureBodies` and `redactQueryKeys`, were removed before the API
   freeze because neither was ever wired to real behavior).
+
+**2026-07-15 update (D11 reversed):** distribution changed from private/token-gated to
+public npm (MIT). §6.1/§6.2 rewritten to drop the install-token prerequisite and the
+`.npmrc` snippet — `npm install @codeskop/tracker` now needs nothing but the registry
+default. The runtime plan gate (§4.6) is unchanged and is now the *only* restriction;
+see `docs/04-security-and-licensing.md` §4.6 and `web-sdk-workflow.md` Phase 14 for the
+full rationale.

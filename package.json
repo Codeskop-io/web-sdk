@@ -4,9 +4,9 @@
   "description": "Codeskop web SDK — browser error, network, and presence capture.",
   "type": "module",
   "sideEffects": false,
-  "license": "UNLICENSED",
+  "license": "MIT",
   "publishConfig": {
-    "access": "restricted",
+    "access": "public",
     "registry": "https://registry.npmjs.org/",
     "provenance": true
   },
