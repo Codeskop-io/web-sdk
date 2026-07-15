@@ -1,7 +1,7 @@
 {
-  "name": "@codeskop-io/tracker-react",
+  "name": "@codeskop/tracker-react",
   "version": "1.0.0",
-  "description": "First-class React integration for @codeskop-io/tracker — a provider, an error boundary, and a hook.",
+  "description": "First-class React integration for @codeskop/tracker — a provider, an error boundary, and a hook.",
   "type": "module",
   "sideEffects": false,
   "license": "MIT",
@@ -46,11 +46,11 @@
       "path": "dist/index.js",
       "limit": "2.5 KB",
       "gzip": true,
-      "ignore": ["react", "@codeskop-io/tracker"]
+      "ignore": ["react", "@codeskop/tracker"]
     }
   ],
   "dependencies": {
-    "@codeskop-io/tracker": "^1.0.0"
+    "@codeskop/tracker": "^1.0.0"
   },
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0"

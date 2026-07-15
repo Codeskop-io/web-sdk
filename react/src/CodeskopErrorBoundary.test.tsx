@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { useState, type ReactElement } from 'react';
-import { recordException } from '@codeskop-io/tracker';
+import { recordException } from '@codeskop/tracker';
 import { CodeskopErrorBoundary } from './CodeskopErrorBoundary.js';
 
-vi.mock('@codeskop-io/tracker', async () => {
-  const actual = await vi.importActual<typeof import('@codeskop-io/tracker')>('@codeskop-io/tracker');
+vi.mock('@codeskop/tracker', async () => {
+  const actual = await vi.importActual<typeof import('@codeskop/tracker')>('@codeskop/tracker');
   return { ...actual, recordException: vi.fn() };
 });
 

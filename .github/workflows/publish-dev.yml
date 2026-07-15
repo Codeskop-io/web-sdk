@@ -10,7 +10,7 @@
 # of self-contained workflow files) before ever attempting to publish.
 #
 # Requires the `NPM_TOKEN` repository secret (an npm Automation token scoped to
-# `@codeskop-io/*` — see docs/10-publishing-setup.md). If it isn't set yet, the
+# `@codeskop/*` — see docs/10-publishing-setup.md). If it isn't set yet, the
 # publish step fails loudly with an explicit error, not a silent skip.
 name: Publish (dev prerelease)
 
@@ -60,19 +60,19 @@ jobs:
 
       # Core must be built before anything react-adapter-side runs — see the
       # matching comment in ci.yml (the react workspace resolves
-      # `@codeskop-io/tracker` via a workspace symlink to the repo root, whose
+      # `@codeskop/tracker` via a workspace symlink to the repo root, whose
       # `exports`/`types` point at `dist/`, not `src/`).
       - name: Build (core)
         run: npm run build
 
       - name: Typecheck (react adapter)
-        run: npm run typecheck --workspace=@codeskop-io/tracker-react
+        run: npm run typecheck --workspace=@codeskop/tracker-react
 
       - name: Test + coverage gate (react adapter)
-        run: npm run test --workspace=@codeskop-io/tracker-react
+        run: npm run test --workspace=@codeskop/tracker-react
 
       - name: Build (react adapter)
-        run: npm run build --workspace=@codeskop-io/tracker-react
+        run: npm run build --workspace=@codeskop/tracker-react
 
       - name: API report check (core + react adapter)
         run: npm run api:check:all
@@ -81,7 +81,7 @@ jobs:
         run: npm run size
 
       - name: Bundle-size budget (react adapter)
-        run: npm run size --workspace=@codeskop-io/tracker-react
+        run: npm run size --workspace=@codeskop/tracker-react
 
       - name: Playwright e2e (vs mock ingest server)
         run: npx playwright test
@@ -120,7 +120,7 @@ jobs:
           if [ -z "$NPM_TOKEN" ]; then
             echo "::error::NPM_TOKEN repository secret is not set — cannot publish to npm."
             echo "::error::See docs/10-publishing-setup.md for how to create an npm Automation token"
-            echo "::error::scoped to @codeskop-io/* and add it as the 'NPM_TOKEN' secret under"
+            echo "::error::scoped to @codeskop/* and add it as the 'NPM_TOKEN' secret under"
             echo "::error::Settings -> Secrets and variables -> Actions on Codeskop-io/web-sdk."
             exit 1
           fi
@@ -133,4 +133,4 @@ jobs:
       - name: Publish react adapter to the 'next' dist-tag
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --workspace=@codeskop-io/tracker-react --tag next --provenance --access public
+        run: npm publish --workspace=@codeskop/tracker-react --tag next --provenance --access public

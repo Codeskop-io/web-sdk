@@ -18,11 +18,11 @@
  * partially-initialized state to protect against. A later change to the
  * `config` prop does **not** re-run `init()` (most apps configure the SDK
  * once, with a value that is stable for the life of the page); call `init()`
- * yourself (re-exported from `@codeskop-io/tracker`) if a runtime config swap is
+ * yourself (re-exported from `@codeskop/tracker`) if a runtime config swap is
  * ever needed.
  */
 import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
-import { init, type CodeskopConfig } from '@codeskop-io/tracker';
+import { init, type CodeskopConfig } from '@codeskop/tracker';
 import { CodeskopContext, defaultCodeskopContextValue } from './context.js';
 
 export interface CodeskopProviderProps {

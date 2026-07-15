@@ -1,6 +1,6 @@
 # 7. Web SDK — SemVer & Compatibility Policy
 
-> The compatibility contract for `@codeskop-io/tracker` and `@codeskop-io/tracker-react`,
+> The compatibility contract for `@codeskop/tracker` and `@codeskop/tracker-react`,
 > effective once the surface is frozen in Workflow Phase 13. Applies to **exactly** the
 > API documented in [`05-api-reference`](./05-api-reference.md) §5.1–5.5 — anything not
 > listed there (any module path other than the package root, any symbol the barrel
@@ -34,11 +34,11 @@ to evolve pre-release; no longer applicable now that `1.0.0` has shipped.
 
 </details>
 
-The core (`@codeskop-io/tracker`) and the React adapter (`@codeskop-io/tracker-react`) are
+The core (`@codeskop/tracker`) and the React adapter (`@codeskop/tracker-react`) are
 versioned **independently** — they are separate packages (`docs/02` §2.1) with separate
 `api-extractor` baselines (§7.4) — but a `tracker-react` release always declares a
 [`peerDependencies`](../react/package.json) range wide enough to cover every
-`@codeskop-io/tracker` version it was actually tested against; narrowing that range to drop
+`@codeskop/tracker` version it was actually tested against; narrowing that range to drop
 support for an old core version is itself a breaking change for `tracker-react`.
 
 ## 7.2 Breaking changes (require a MAJOR bump)
@@ -148,7 +148,7 @@ A breaking removal is never shipped in the same release it's decided:
 
 ## 7.6 Scope note
 
-This policy governs `@codeskop-io/tracker` and `@codeskop-io/tracker-react`'s **own** public
+This policy governs `@codeskop/tracker` and `@codeskop/tracker-react`'s **own** public
 API surface only. It does not change, and is not a substitute for, the versioning of the
 shared ingest wire contract (`backend/docs/07` §7.5), which the Android SDK, the web
 SDK, and the backend all depend on jointly — a wire-contract change is coordinated

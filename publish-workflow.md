@@ -1,4 +1,4 @@
-# Web SDK Publish & Release Workflow (`@codeskop-io/tracker` + `@codeskop-io/tracker-react`)
+# Web SDK Publish & Release Workflow (`@codeskop/tracker` + `@codeskop/tracker-react`)
 
 > The operational counterpart to [`web-sdk-workflow.md`](./web-sdk-workflow.md): not
 > "how the SDK was built" but **"how a commit becomes a version someone can
@@ -13,7 +13,7 @@
 > reference for the three workflow files that closed it.
 
 - **Owner:** Web SDK team
-- **Packages:** `@codeskop-io/tracker` (root) · `@codeskop-io/tracker-react` (`react/`) —
+- **Packages:** `@codeskop/tracker` (root) · `@codeskop/tracker-react` (`react/`) —
   separate publishable units, separate SemVer lines (`docs/07-semver-policy.md` §7.1).
 - **Workflow files:** [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) ·
   [`.github/workflows/publish-dev.yml`](./.github/workflows/publish-dev.yml) ·
@@ -49,18 +49,18 @@ three files on purpose. If you change a gate, change it in all three.
 3. `npm run lint` — ESLint over the whole tree (core, react adapter, and the demo
    example under `react/example`).
 4. `npm run typecheck` (core) → `npm test` (core) → **`npm run build` (core)** →
-   `npm run typecheck --workspace=@codeskop-io/tracker-react` (adapter) → `npm run test
-   --workspace=@codeskop-io/tracker-react` (adapter) → `npm run build
-   --workspace=@codeskop-io/tracker-react` (adapter). **Core's build has to happen before
+   `npm run typecheck --workspace=@codeskop/tracker-react` (adapter) → `npm run test
+   --workspace=@codeskop/tracker-react` (adapter) → `npm run build
+   --workspace=@codeskop/tracker-react` (adapter). **Core's build has to happen before
    the adapter's typecheck/test, not after** — the `react/` workspace resolves
-   `@codeskop-io/tracker` through an npm workspace symlink to the repo root, and that
+   `@codeskop/tracker` through an npm workspace symlink to the repo root, and that
    package's `exports`/`types` fields point at `dist/`, not `src/`; on a clean
    checkout, `react/`'s typecheck and tests fail with "Cannot find module
-   '@codeskop-io/tracker'" until core's own `dist/` exists. (This was caught for real —
+   '@codeskop/tracker'" until core's own `dist/` exists. (This was caught for real —
    see §6 — not just reasoned about: the first live CI run against
    `Codeskop-io/web-sdk` failed on exactly this before the step order was fixed.)
    **Note:** always target the workspace by its full package name
-   (`@codeskop-io/tracker-react`), never by directory (`--workspace=react`) — the latter
+   (`@codeskop/tracker-react`), never by directory (`--workspace=react`) — the latter
    also matches the nested `react/example` demo workspace and fails on its missing
    `typecheck`/`lint` scripts. Every workspace-scoped command in these workflows uses
    the full name for this reason. `vitest run --coverage` **fails the job itself** if
@@ -71,7 +71,7 @@ three files on purpose. If you change a gate, change it in all three.
    fails on any undocumented signature drift. Runs after both builds, since its entry
    point is each package's built `dist/index.d.ts`.
 6. `npm run size` (core, 12 KB gzipped budget) + `npm run size
-   --workspace=@codeskop-io/tracker-react` (adapter, 2.5 KB gzipped budget).
+   --workspace=@codeskop/tracker-react` (adapter, 2.5 KB gzipped budget).
 7. `npx playwright test` — real Chromium against the vendored mock ingest server
    (§1.2). `e2e/staging-smoke.spec.ts` is opt-in (`test.skip` unless
    `STAGING_TEST_KEY`/`PRODUCTION_TEST_KEY` is set) and never runs live in any of
@@ -99,8 +99,8 @@ is no automation tying the two together.
 
 | dist-tag | Published by | Version shape | Who installs it |
 |----------|---------------|----------------|-------------------|
-| `next` | `publish-dev.yml`, on every merge to `development` | `<package.json version>-dev.<short-sha>`, e.g. `1.0.0-dev.a1b2c3d` | Internal dogfooding / anyone who explicitly opts in with `npm install @codeskop-io/tracker@next` |
-| `latest` | `release.yml`, on a `vX.Y.Z` tag | Exactly `package.json`'s version (e.g. `1.0.0`) | Everyone — the default `npm install @codeskop-io/tracker` resolves to whatever `latest` points at |
+| `next` | `publish-dev.yml`, on every merge to `development` | `<package.json version>-dev.<short-sha>`, e.g. `1.0.0-dev.a1b2c3d` | Internal dogfooding / anyone who explicitly opts in with `npm install @codeskop/tracker@next` |
+| `latest` | `release.yml`, on a `vX.Y.Z` tag | Exactly `package.json`'s version (e.g. `1.0.0`) | Everyone — the default `npm install @codeskop/tracker` resolves to whatever `latest` points at |
 
 The `next` version is **computed at publish time**, not written back to
 `development` — `publish-dev.yml` mutates `package.json`'s (and
@@ -148,10 +148,10 @@ fails the release if `SDK_VERSION` wasn't bumped too.
   `src/core/version.ts`'s `SDK_VERSION` literal — **fails the release** if either was
   missed. (`react/package.json`'s version is checked too, but only produces a
   `::warning::`, not a failure — see the independent-versioning note in §3.1.)
-- Publishes `@codeskop-io/tracker` to the `latest` dist-tag:
+- Publishes `@codeskop/tracker` to the `latest` dist-tag:
   `npm publish --tag latest --provenance --access public`.
-- Publishes `@codeskop-io/tracker-react` the same way, at **its own** current
-  `react/package.json` version (`npm publish --workspace=@codeskop-io/tracker-react
+- Publishes `@codeskop/tracker-react` the same way, at **its own** current
+  `react/package.json` version (`npm publish --workspace=@codeskop/tracker-react
   --tag latest --provenance --access public`).
 - Runs `gh release create "$GITHUB_REF_NAME" --generate-notes --title
   "$GITHUB_REF_NAME"` — same convention as `backend`'s and `landing`'s `release.yml`.
@@ -169,16 +169,16 @@ self-documenting without needing to cross-reference `package.json`.
 ## 4. The `NPM_TOKEN` secret
 
 Both `publish-dev.yml` and `release.yml` need an `NPM_TOKEN` repository secret — an
-npm **Automation** token scoped to `@codeskop-io/*` with publish rights. **This does not
+npm **Automation** token scoped to `@codeskop/*` with publish rights. **This does not
 exist yet** — creating it requires a human with npmjs.com account access, which no
 agent or CI job in this workspace has or should have.
 
 **Full one-time setup steps are in
 [`docs/10-publishing-setup.md`](./docs/10-publishing-setup.md)** — summarized:
 
-1. Create/confirm the `codeskop-io` npm org (a free org — public scoped packages don't
+1. Create/confirm the `codeskop` npm org (a free org — public scoped packages don't
    require a paid plan).
-2. Generate an **Automation** access token (not "Publish") scoped to `@codeskop-io/*`.
+2. Generate an **Automation** access token (not "Publish") scoped to `@codeskop/*`.
 3. Add it as a GitHub Actions secret on `Codeskop-io/web-sdk`: **Settings → Secrets
    and variables → Actions → New repository secret**, named exactly `NPM_TOKEN`.
 
@@ -198,7 +198,7 @@ against `docs.npmjs.com`'s unpublish policy directly, not assumed):
 - **`npm unpublish` is time- and popularity-gated, not a general-purpose rollback
   tool:**
   - Within **72 hours** of publishing a given version, `npm unpublish
-    @codeskop-io/tracker@<version>` is allowed unconditionally, **provided no other
+    @codeskop/tracker@<version>` is allowed unconditionally, **provided no other
     package depends on it** — the exact scenario a bad `next` prerelease published
     minutes ago by `publish-dev.yml` would be in.
   - After 72 hours, npm only permits it if the package has **no dependents**, **fewer
@@ -209,7 +209,7 @@ against `docs.npmjs.com`'s unpublish policy directly, not assumed):
     republish of the old one.
   - If **every** version of a package is unpublished, npm blocks any new publish of
     that package name for **24 hours** afterward.
-- **`npm deprecate @codeskop-io/tracker@<bad-version> "<reason>"`** is the practical
+- **`npm deprecate @codeskop/tracker@<bad-version> "<reason>"`** is the practical
   rollback lever for anything already past the unpublish window (i.e. almost any
   `latest` release): it leaves the version installable (so existing lockfiles/CI
   don't break) but prints the given warning on every `npm install` that resolves it,
@@ -224,7 +224,7 @@ against `docs.npmjs.com`'s unpublish policy directly, not assumed):
   incident response.
 - **Practical guidance for this repo's two channels:**
   - A bad `next` prerelease (published minutes ago, no realistic external dependents):
-    `npm unpublish @codeskop-io/tracker@<version>` is genuinely usable — it's within the
+    `npm unpublish @codeskop/tracker@<version>` is genuinely usable — it's within the
     72-hour/no-dependents case almost by construction, given `next` is meant for
     internal dogfooding. Re-running `publish-dev.yml` (e.g. by pushing another commit
     to `development`) produces a new `-dev.<sha>` version to replace it, since the old
@@ -245,7 +245,7 @@ against `docs.npmjs.com`'s unpublish policy directly, not assumed):
   - That verification run caught two real bugs the first (also-throwaway) attempt
     surfaced, both now fixed on `development`: (1) all three workflows ran the react
     adapter's typecheck/test *before* core's build, but the adapter resolves
-    `@codeskop-io/tracker` through a workspace symlink whose `exports`/`types` point at
+    `@codeskop/tracker` through a workspace symlink whose `exports`/`types` point at
     `dist/`, which doesn't exist yet on a clean checkout — reordered so core builds
     first; (2) three integration test files
     (`src/config/remoteConfigClient.integration.test.ts`,

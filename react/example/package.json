@@ -1,7 +1,7 @@
 {
   "name": "codeskop-tracker-react-example",
   "version": "0.0.0",
-  "description": "Phase 12 (web-sdk-workflow.md) manual/demo harness: exercises @codeskop-io/tracker-react end-to-end against the mock ingest server (backend/mock-ingest-server) or a real staging/production key.",
+  "description": "Phase 12 (web-sdk-workflow.md) manual/demo harness: exercises @codeskop/tracker-react end-to-end against the mock ingest server (backend/mock-ingest-server) or a real staging/production key.",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,8 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@codeskop-io/tracker": "file:../..",
-    "@codeskop-io/tracker-react": "file:..",
+    "@codeskop/tracker": "file:../..",
+    "@codeskop/tracker-react": "file:..",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },

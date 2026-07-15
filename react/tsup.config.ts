@@ -10,10 +10,10 @@ export default defineConfig({
   target: 'es2022',
   splitting: false,
   minify: false,
-  // Neither dependency is bundled: `@codeskop-io/tracker` publishes its own bundle
+  // Neither dependency is bundled: `@codeskop/tracker` publishes its own bundle
   // (docs/02 §2.1 — the core is a separate entry point so a vanilla consumer
   // never pays for React), and `react` is the host app's own copy (peerDependency).
-  external: ['react', '@codeskop-io/tracker'],
+  external: ['react', '@codeskop/tracker'],
   esbuildOptions(options) {
     options.jsx = 'automatic';
   },

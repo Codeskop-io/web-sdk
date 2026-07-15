@@ -160,7 +160,7 @@ release-engineering policy (`web-sdk-workflow.md` Phase 15)":
     MAJOR.
 - **Yanking a bad release** (distinct from planned deprecation — an already-published
   version turns out to be actively harmful, e.g. a regression that breaks capture or
-  leaks data): `npm deprecate @codeskop-io/tracker@<bad-version> "<reason>"` marks it in
+  leaks data): `npm deprecate @codeskop/tracker@<bad-version> "<reason>"` marks it in
   the registry (visible to anyone running `npm install`, doesn't block already-locked
   installs) — this requires the same Automation-token publish access as a real release
   (`docs/10` §10.2(b)), so it has the same "human with npmjs.com access" prerequisite
@@ -187,7 +187,7 @@ assignment that doesn't exist. Whoever staffs this in practice should:
 - Have (or be grantable) Django admin **staff** access to both
   `staging.api.codeskop.com/admin/` and `api.codeskop.com/admin/` — §13.1's drill is
   unusable without it.
-- Have (or know who holds) npmjs.com `@codeskop-io` org access for a yank/deprecate action
+- Have (or know who holds) npmjs.com `@codeskop` org access for a yank/deprecate action
   (§13.2) — this is the same access gap `docs/10-publishing-setup.md` already flags for
   the initial publish.
 - Own watching whatever health signal exists once `docs/12-sdk-health-telemetry-spec.md`

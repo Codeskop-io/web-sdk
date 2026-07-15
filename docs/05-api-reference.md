@@ -1,6 +1,6 @@
 # 5. Web SDK — API Reference
 
-> The public surface of `@codeskop-io/tracker`. Frozen in Workflow Phase 13 and SemVer'd
+> The public surface of `@codeskop/tracker`. Frozen in Workflow Phase 13 and SemVer'd
 > thereafter; everything not listed here is internal and may change.
 
 ## 5.1 `init(config)`
@@ -9,7 +9,7 @@ Initialize once. Returns immediately; all I/O is deferred. Safe to call before t
 is ready. A non-public key (`cs_*_sk_…` or malformed) disables the SDK fail-soft.
 
 ```ts
-import { init } from "@codeskop-io/tracker";
+import { init } from "@codeskop/tracker";
 
 init({
   apiKey: "cs_live_pk_…",              // public ingest key (required)
@@ -73,10 +73,10 @@ Best-effort expedited drain of the queue. Resolves `true` if a sync ran.
 - **No-op when unlicensed** — an inactive plan (remote `enabled:false`) means the API
   is callable but captures/sends nothing (D11).
 
-## 5.5 React adapter (`@codeskop-io/tracker-react`)
+## 5.5 React adapter (`@codeskop/tracker-react`)
 
 ```tsx
-import { CodeskopProvider, CodeskopErrorBoundary, useCodeskop } from "@codeskop-io/tracker-react";
+import { CodeskopProvider, CodeskopErrorBoundary, useCodeskop } from "@codeskop/tracker-react";
 
 <CodeskopProvider config={{ apiKey: "cs_live_pk_…" }}>
   <CodeskopErrorBoundary fallback={<Oops />}>

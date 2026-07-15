@@ -9,7 +9,7 @@
 
 ## 12.1 Why these four metrics
 
-`@codeskop-io/tracker` runs inside every customer's page, unsupervised, guarded by
+`@codeskop/tracker` runs inside every customer's page, unsupervised, guarded by
 `safely()` so a defect degrades to a dropped event rather than a broken host page
 (`docs/04` §4.5). That guarantee is also exactly why the SDK's *own* health is
 invisible from the outside today: a fault is swallowed silently by design. Without

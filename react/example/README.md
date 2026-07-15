@@ -1,4 +1,4 @@
-# `@codeskop-io/tracker-react` example
+# `@codeskop/tracker-react` example
 
 A minimal Vite + React app exercising `CodeskopProvider`, `CodeskopErrorBoundary`,
 and `useCodeskop()` end-to-end (`web-sdk-workflow.md` Phase 12).

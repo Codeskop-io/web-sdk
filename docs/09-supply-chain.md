@@ -4,7 +4,7 @@
 > vulnerability scan, license audit, zero-runtime-dependency confirmation (D1), SBOM
 > generation, and CSP-friendliness check of the built `dist/` output.
 >
-> Audited: 2026-07-14. Scope: `@codeskop-io/tracker` (root) + `@codeskop-io/tracker-react`
+> Audited: 2026-07-14. Scope: `@codeskop/tracker` (root) + `@codeskop/tracker-react`
 > (`react/`) + the `react/example` demo harness workspace (dev-only, never published).
 
 ## 9.1 `npm audit` — vulnerability scan
@@ -83,8 +83,8 @@ of the `react/example` Vite demo harness, never shipped.
 
 The two components with no `license` field are **not third-party** — they are our own
 workspace packages, surfaced by the same `npm sbom` directory-naming quirk noted in
-§9.4 (the root package is listed as `webpack` instead of `@codeskop-io/tracker`; likewise
-the react adapter is listed as `react` instead of `@codeskop-io/tracker-react`, and the
+§9.4 (the root package is listed as `webpack` instead of `@codeskop/tracker`; likewise
+the react adapter is listed as `react` instead of `@codeskop/tracker-react`, and the
 demo harness as `example` instead of `codeskop-tracker-react-example`). Both are
 `"private": true`, unpublished, and never `npm pack`ed, so an absent license field is
 expected and not a supply-chain finding.
@@ -92,16 +92,16 @@ expected and not a supply-chain finding.
 Per D1 and this doc's own remit, the license bar that matters is:
 
 - **`dependencies` (shipped, must be OSS-compatible or absent):** both
-  `@codeskop-io/tracker` and `@codeskop-io/tracker-react` declare `"dependencies": {}`
+  `@codeskop/tracker` and `@codeskop/tracker-react` declare `"dependencies": {}`
   empty except the react adapter's single **workspace** dependency on
-  `@codeskop-io/tracker` itself (`file:..`, our own code, not third-party) — see §9.3.
+  `@codeskop/tracker` itself (`file:..`, our own code, not third-party) — see §9.3.
 - **`devDependencies` (build/test only, never shipped):** any OSS license is
   acceptable per the task brief — confirmed all 306 third-party packages (308 total
   minus our own 2 workspace packages) are permissive/OSS above.
 
 The `prod: 9` count `npm audit`'s metadata reports is **not** the SDK's own runtime
 dependency count — it comes entirely from `react/example`'s `package.json`, which
-lists `react`, `react-dom`, `@codeskop-io/tracker`, and `@codeskop-io/tracker-react` under
+lists `react`, `react-dom`, `@codeskop/tracker`, and `@codeskop/tracker-react` under
 `dependencies` because it is a runnable Vite demo app, not a published package
 (`"private": true`, excluded from `workspaces` publishing, never `npm pack`ed). It does
 not affect what customers install.
@@ -122,7 +122,7 @@ Both hits are the naive grep pattern matching the English word "from" inside a `
 doc comment (`* "no new attempt happened" apart from "an attempt happened...`), **not**
 an actual `import`/`require` statement — confirmed by inspection, and by the absence of
 any `import `/`require(` **statement** keyword on either line. `dist/index.js` /
-`dist/index.cjs` (the root `@codeskop-io/tracker` core) contain **zero** real
+`dist/index.cjs` (the root `@codeskop/tracker` core) contain **zero** real
 `import`/`require` statements — the entire bundle is self-contained, matching D1
 exactly. (Re-run this check after any future src change that adds prose containing the
 word "from" next to a quote — inspect matches by hand rather than trusting a bare
@@ -131,16 +131,16 @@ word "from" next to a quote — inspect matches by hand rather than trusting a b
 ```
 $ grep -nE "require\(|from \"|from '" react/dist/index.js react/dist/index.cjs
 react/dist/index.js:1:import { createContext, useRef, useEffect, Component, useContext } from 'react';
-react/dist/index.js:2:import { flush, setEnabled, reset, identify, recordException, init } from '@codeskop-io/tracker';
+react/dist/index.js:2:import { flush, setEnabled, reset, identify, recordException, init } from '@codeskop/tracker';
 react/dist/index.js:3:import { jsx } from 'react/jsx-runtime';
 react/dist/index.cjs:3:var react = require('react');
-react/dist/index.cjs:4:var tracker = require('@codeskop-io/tracker');
+react/dist/index.cjs:4:var tracker = require('@codeskop/tracker');
 react/dist/index.cjs:5:var jsxRuntime = require('react/jsx-runtime');
 ```
 
 `react/dist` (the adapter) imports exactly two things, both expected and neither a
 third-party runtime dependency: `react` (declared **`peerDependencies`** only — the
-customer's own React, never bundled) and `@codeskop-io/tracker` (our own sibling
+customer's own React, never bundled) and `@codeskop/tracker` (our own sibling
 package, not a third party). **No other package appears in either built bundle.**
 
 ## 9.4 SBOM
@@ -161,11 +161,11 @@ stream's `@microsoft/api-extractor` addition):
   dev + optional + peer)
 - The naming-by-directory quirk noted below applies to every workspace, not just the
   root: `metadata.component` names the root package `webpack` (its directory) instead
-  of `@codeskop-io/tracker`, and inside `components[]` the react adapter appears as
-  `react` (its directory) instead of `@codeskop-io/tracker-react`, and the demo harness
+  of `@codeskop/tracker`, and inside `components[]` the react adapter appears as
+  `react` (its directory) instead of `@codeskop/tracker-react`, and the demo harness
   as `example` instead of `codeskop-tracker-react-example`. In every case the `purl`
   field carries the correct scoped/real name (e.g.
-  `pkg:npm/%40codeskop-io/tracker@1.0.0`). This is an `npm sbom` display quirk, not
+  `pkg:npm/%40codeskop/tracker@1.0.0`). This is an `npm sbom` display quirk, not
   a data error, and was left as-is rather than hand-edited.
 
 Regenerate before each release: `npm sbom --sbom-format cyclonedx > sbom/tracker-sbom.cyclonedx.json`.

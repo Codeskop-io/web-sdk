@@ -1,5 +1,5 @@
 import { useState, type ReactElement } from 'react';
-import { CodeskopErrorBoundary, CodeskopProvider, useCodeskop } from '@codeskop-io/tracker-react';
+import { CodeskopErrorBoundary, CodeskopProvider, useCodeskop } from '@codeskop/tracker-react';
 
 /**
  * Same-origin by design (`vite.config.ts`'s proxy) — see this folder's
@@ -38,7 +38,7 @@ function Demo(): ReactElement {
 
   return (
     <main>
-      <h1>@codeskop-io/tracker-react example</h1>
+      <h1>@codeskop/tracker-react example</h1>
 
       <section className="panel">
         <h2>Handled exception</h2>

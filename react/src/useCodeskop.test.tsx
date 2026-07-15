@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import type { ReactElement } from 'react';
-import * as tracker from '@codeskop-io/tracker';
+import * as tracker from '@codeskop/tracker';
 import { CodeskopContext, defaultCodeskopContextValue } from './context.js';
 import { useCodeskop } from './useCodeskop.js';
 

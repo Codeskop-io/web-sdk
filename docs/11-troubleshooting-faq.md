@@ -8,19 +8,19 @@
 
 ## 11.1 Install setup
 
-**2026-07-15: `@codeskop-io/tracker` is a public, MIT-licensed npm package (D11 reversed —
-see `docs/04` §4.6). `npm install @codeskop-io/tracker` needs no token, no `.npmrc`
+**2026-07-15: `@codeskop/tracker` is a public, MIT-licensed npm package (D11 reversed —
+see `docs/04` §4.6). `npm install @codeskop/tracker` needs no token, no `.npmrc`
 entry, and no npm org membership.** If you're seeing an install-time 401/403, it isn't
 this package gating access — check for a stale `.npmrc` scope override left over from
 another private registry, or a corporate proxy/registry mirror intercepting the
-`@codeskop-io` scope. Confirm the registry line, if any exists in your `.npmrc`, is exactly
-`@codeskop-io:registry=https://registry.npmjs.org/` (or remove it entirely — the public
+`@codeskop` scope. Confirm the registry line, if any exists in your `.npmrc`, is exactly
+`@codeskop:registry=https://registry.npmjs.org/` (or remove it entirely — the public
 registry is the default).
 
 If the package installs fine but the SDK never captures anything, that's the **runtime
 plan gate**, not install access — see §11.2 below, it's almost always cause 1 or 2 there.
 
-**`npm install` succeeds but `import { init } from "@codeskop-io/tracker"` doesn't resolve
+**`npm install` succeeds but `import { init } from "@codeskop/tracker"` doesn't resolve
 (TypeScript can't find types, or the module fails to load).**
 
 - Check your `package.json`'s installed version against `dist/`'s actual `exports` map

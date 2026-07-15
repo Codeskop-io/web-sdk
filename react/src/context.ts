@@ -3,12 +3,12 @@
  * `web-sdk-workflow.md` Phase 12). Holds the same guarded, no-op-before-`init()`
  * functions the vanilla core exports (`docs/05` §5.4) — the context exists so
  * a component can reach them via `useCodeskop()` without importing
- * `@codeskop-io/tracker` directly, and so tests can substitute a fake
+ * `@codeskop/tracker` directly, and so tests can substitute a fake
  * implementation by rendering `CodeskopContext.Provider` with their own value
  * (`useCodeskop.test.tsx`).
  */
 import { createContext } from 'react';
-import { flush, identify, recordException, reset, setEnabled } from '@codeskop-io/tracker';
+import { flush, identify, recordException, reset, setEnabled } from '@codeskop/tracker';
 
 export interface CodeskopContextValue {
   /** `docs/05` §5.3 — report a handled error the app caught itself. */

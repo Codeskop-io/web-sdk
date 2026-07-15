@@ -9,18 +9,20 @@
 
 ## 10.0 Step-by-step: publishing v1.0.0 (start here)
 
-You've already created the **`codeskop-io`** npm org (the name `codeskop` was taken,
-hence the scope is `@codeskop-io`, not `@codeskop` — every doc, `package.json`, import,
-and CI workflow in this repo was updated to match). Everything on the *code* side of
+You've already created the **`codeskop`** npm org — the package scope is `@codeskop`,
+matching what's already in every doc, `package.json`, import, and CI workflow in this
+repo (a brief attempt to use `@codeskop-io` instead, on the assumption `codeskop` was
+taken, was fully reverted once `codeskop` turned out to be available after all — see
+`web-sdk-workflow.md` Phase 14's revision note). Everything on the *code* side of
 this release is done and verified: both packages are at `1.0.0`, scoped
-`@codeskop-io/tracker` / `@codeskop-io/tracker-react`, public + MIT, build clean, full
+`@codeskop/tracker` / `@codeskop/tracker-react`, public + MIT, build clean, full
 test suite green (403 core + 15 react), `api:update:all` baselines regenerated with
 zero surface drift, SBOM regenerated, `npm publish --dry-run` confirms `public access`
 for both packages. What's left is entirely manual, on npmjs.com and GitHub — nothing
 past this point can be done by an agent:
 
-1. **Generate the Automation token** (§10.2(b)) from the `codeskop-io` org: Access
-   Tokens → new **Automation** token → scope it to `@codeskop-io/*` with publish
+1. **Generate the Automation token** (§10.2(b)) from the `codeskop` org: Access
+   Tokens → new **Automation** token → scope it to `@codeskop/*` with publish
    rights → copy it (shown once).
 2. **Add it as a GitHub Actions secret** (§10.2(c)): `Codeskop-io/web-sdk` → Settings →
    Secrets and variables → Actions → New repository secret → name it exactly
@@ -29,8 +31,8 @@ past this point can be done by an agent:
    alone triggers `publish-dev.yml`, which publishes a `next`-tagged **prerelease** for
    both packages — treat this as your first real signal that steps 1–2 actually work,
    before cutting the real release.
-4. **Verify the prerelease published:** `npm view @codeskop-io/tracker@next` and
-   `npm view @codeskop-io/tracker-react@next` should both resolve to a
+4. **Verify the prerelease published:** `npm view @codeskop/tracker@next` and
+   `npm view @codeskop/tracker-react@next` should both resolve to a
    `1.0.0-dev.<sha>`-shaped version, no auth needed.
 5. **Tag the merged commit** to cut the real release:
    ```bash
@@ -44,10 +46,10 @@ past this point can be done by an agent:
    verifies the tag matches `package.json`'s version (`1.0.0`, already bumped, along
    with `src/core/version.ts`'s `SDK_VERSION` literal), publishes both packages to the
    `latest` dist-tag, and cuts a GitHub Release via `gh release create`.
-7. **Verify the real publish** (§10.5): `npm view @codeskop-io/tracker` shows `1.0.0`
+7. **Verify the real publish** (§10.5): `npm view @codeskop/tracker` shows `1.0.0`
    under `dist-tags.latest`, no auth needed — it's a public package. Then do a real
-   install check in a throwaway project: `npm install @codeskop-io/tracker` with **no
-   `.npmrc` entry at all**, and confirm `import { init } from "@codeskop-io/tracker"`
+   install check in a throwaway project: `npm install @codeskop/tracker` with **no
+   `.npmrc` entry at all**, and confirm `import { init } from "@codeskop/tracker"`
    resolves.
 8. **Confirm the actual restriction is the runtime gate, not the install:**
    `init()` that fresh install against a valid staging/production key (should capture
@@ -63,8 +65,8 @@ in case a future workflow edit accidentally drops it.
 
 ## 10.1 Decision
 
-Per Phase 14 (revised 2026-07-15, D11): `@codeskop-io/tracker` and `@codeskop-io/tracker-react`
-publish to the **public npm registry** (`registry.npmjs.org`, `@codeskop-io` scope,
+Per Phase 14 (revised 2026-07-15, D11): `@codeskop/tracker` and `@codeskop/tracker-react`
+publish to the **public npm registry** (`registry.npmjs.org`, `@codeskop` scope,
 `publishConfig.access: "public"`) — not GitHub Packages, and not a private/restricted
 scope. Anyone can `npm install` either package; no per-customer install token exists.
 The commercial restriction lives entirely in the runtime plan gate (`docs/04` §4.6),
@@ -96,12 +98,12 @@ to prove the package came from CI, not from someone's laptop.
 
 ## 10.2 One-time manual setup (human with npmjs.com access only)
 
-### (a) Create the `@codeskop-io` org/scope
+### (a) Create the `@codeskop` org/scope
 
 1. Sign in to [npmjs.com](https://www.npmjs.com/) with an account that will administer
    the organization.
-2. Create the **`codeskop-io`** organization (Settings → Organizations → Create
-   Organization) if it doesn't already exist. This is what makes `@codeskop-io/...`
+2. Create the **`codeskop`** organization (Settings → Organizations → Create
+   Organization) if it doesn't already exist. This is what makes `@codeskop/...`
    package names resolvable as a scope you control. **Public scoped packages are free**
    on npm — no paid plan is required for `publishConfig.access: "public"` (that
    requirement only applies to *private/restricted* packages, which this scope no
@@ -110,11 +112,11 @@ to prove the package came from CI, not from someone's laptop.
 
 ### (b) Generate an Automation access token
 
-1. From the `codeskop-io` org (or a machine/bot account with publish rights to it), go to
+1. From the `codeskop` org (or a machine/bot account with publish rights to it), go to
    **Access Tokens** in npmjs.com account settings.
 2. Generate a new **Automation** token (not "Publish" — Automation tokens are the type
    meant for unattended CI publishing and bypass 2FA-on-publish prompts).
-3. Scope it to the `@codeskop-io` packages/org only (not "all packages" on the account),
+3. Scope it to the `@codeskop` packages/org only (not "all packages" on the account),
    with publish permission. This token is **org-side, publish-only** — there is no
    customer-facing counterpart anymore, since installing the package requires no token
    at all.
@@ -140,10 +142,10 @@ usual publish command per package:
     node-version: 22
     registry-url: https://registry.npmjs.org/
 - run: npm ci
-- run: npm publish --workspace=. # @codeskop-io/tracker
+- run: npm publish --workspace=. # @codeskop/tracker
   env:
     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-- run: npm publish --workspace=react # @codeskop-io/tracker-react
+- run: npm publish --workspace=react # @codeskop/tracker-react
   env:
     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 ```
@@ -165,11 +167,11 @@ failure mode is expected until this permission is added to the workflow.
 
 ## 10.5 Verifying it worked (for whoever does this)
 
-- `npm view @codeskop-io/tracker` resolves and shows the published version — no auth
+- `npm view @codeskop/tracker` resolves and shows the published version — no auth
   needed, it's a public package.
 - The npmjs.com package page shows a "Provenance" badge with a link to the GitHub
   Actions run and source commit.
-- A throwaway project can `npm install @codeskop-io/tracker` with **no `.npmrc` entry at
+- A throwaway project can `npm install @codeskop/tracker` with **no `.npmrc` entry at
   all** — the fastest real-world check that public distribution actually works.
 - Initializing that install against a real key confirms the runtime gate is what's
   actually doing the restricting: an inactive/unlicensed key should still yield a
@@ -177,10 +179,10 @@ failure mode is expected until this permission is added to the workflow.
 
 ## 10.6 Status
 
-**Not done — the `codeskop-io` org exists, the actual `v1.0.0` publish doesn't yet.**
+**Not done — the `codeskop` org exists, the actual `v1.0.0` publish doesn't yet.**
 §10.0 is the concrete remaining checklist; see the Phase 14 tracker entry in
 [`../web-sdk-workflow.md`](../web-sdk-workflow.md) for the fuller history. Everything
-on the code side — the `@codeskop-io` rename, the `1.0.0` version bump (both
+on the code side — the `@codeskop` rename, the `1.0.0` version bump (both
 `package.json`s + `src/core/version.ts`'s `SDK_VERSION`), public access + MIT license,
 `npm publish --dry-run`, `npm pack` tarball audit, regenerated API reports/SBOM, and
 the runtime plan-gate re-verification — is done and doesn't require npmjs.com access.

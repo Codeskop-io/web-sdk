@@ -1,5 +1,5 @@
 /**
- * The `@codeskop-io/tracker` wire contract and cross-module seams.
+ * The `@codeskop/tracker` wire contract and cross-module seams.
  *
  * The event/envelope shapes mirror the shared ingest contract
  * (`backend/docs/07-mobile-sdk-ingest-readiness.md` §7.5, `backend/apps/ingest/schemas.py`)

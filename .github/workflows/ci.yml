@@ -3,9 +3,9 @@
 # coverage gate, a real build, the gzipped bundle-size budget, and a real-Chromium
 # e2e pass against the mock ingest server.
 #
-# Runs the same checks for both publishable units: the core (`@codeskop-io/tracker`,
-# root) and the React adapter (`@codeskop-io/tracker-react`, `react/`). Uses each
-# workspace's full package name (`--workspace=@codeskop-io/tracker-react`), not its
+# Runs the same checks for both publishable units: the core (`@codeskop/tracker`,
+# root) and the React adapter (`@codeskop/tracker-react`, `react/`). Uses each
+# workspace's full package name (`--workspace=@codeskop/tracker-react`), not its
 # directory (`--workspace=react`) — the latter also matches the nested
 # `react/example` demo workspace and fails on its missing scripts.
 name: CI
@@ -56,25 +56,25 @@ jobs:
         run: npm test
 
       # Core must be built *before* anything react-adapter-side runs: the
-      # react workspace depends on `@codeskop-io/tracker` via npm workspace
+      # react workspace depends on `@codeskop/tracker` via npm workspace
       # linking (a node_modules symlink to the repo root, not a copy), and
       # that package's `exports`/`types` point at `dist/`, not `src/` — so a
       # clean checkout's react typecheck/test fail with "Cannot find module
-      # '@codeskop-io/tracker'" until core's own `dist/` exists. This isn't
-      # about the react adapter needing `@codeskop-io/tracker`'s *build output*
+      # '@codeskop/tracker'" until core's own `dist/` exists. This isn't
+      # about the react adapter needing `@codeskop/tracker`'s *build output*
       # to have already been re-checked — the workspace symlink is always in
       # place after `npm ci`; the missing piece is purely core's `dist/`.
       - name: Build (core)
         run: npm run build
 
       - name: Typecheck (react adapter)
-        run: npm run typecheck --workspace=@codeskop-io/tracker-react
+        run: npm run typecheck --workspace=@codeskop/tracker-react
 
       - name: Test + coverage gate (react adapter)
-        run: npm run test --workspace=@codeskop-io/tracker-react
+        run: npm run test --workspace=@codeskop/tracker-react
 
       - name: Build (react adapter)
-        run: npm run build --workspace=@codeskop-io/tracker-react
+        run: npm run build --workspace=@codeskop/tracker-react
 
       # Public API surface freeze (Phase 13): fails on any signature drift from
       # the committed baseline (`etc/tracker.api.md` / `react/etc/tracker-react.api.md`).
@@ -85,7 +85,7 @@ jobs:
         run: npm run size
 
       - name: Bundle-size budget (react adapter)
-        run: npm run size --workspace=@codeskop-io/tracker-react
+        run: npm run size --workspace=@codeskop/tracker-react
 
       # Real Chromium, against the vendored mock ingest server — not jsdom, not
       # a stubbed fetch. `e2e/staging-smoke.spec.ts` is opt-in (skips unless

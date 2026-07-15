@@ -1,4 +1,4 @@
-# Web SDK Build & Release Workflow (`@codeskop-io/tracker`)
+# Web SDK Build & Release Workflow (`@codeskop/tracker`)
 
 > The single, tracked, gated plan to build the Codeskop **web** SDK from an empty
 > `development` branch all the way to a **published, production-grade** browser
@@ -15,7 +15,7 @@
 > actually gated is the runtime plan (`docs/04` §4.6), not the install.
 
 - **Owner:** Web SDK team
-- **Package:** `@codeskop-io/tracker` (TypeScript, ESM + CJS + types, built with **tsup**).
+- **Package:** `@codeskop/tracker` (TypeScript, ESM + CJS + types, built with **tsup**).
 - **Backend contract:** the **same** ingest contract the Android SDK and backend share
   — [`backend/docs/07` §7.5](../backend/docs/07-mobile-sdk-ingest-readiness.md#75-the-locked-contract-build-to-this)
   (`POST /v1/events`, `GET /v1/config`). The web SDK is a new client of an existing,
@@ -97,7 +97,7 @@ owner merges, and the next phase branches from the updated `development`.
 **Goal:** the scaffold builds and publishes types, CI runs every check, and the 80%
 coverage gate + gzipped bundle-size budget are merge-blocking. (D4)
 
-- [ ] `package.json` for `@codeskop-io/tracker` (private scoped, `"private"` until Phase 14;
+- [ ] `package.json` for `@codeskop/tracker` (private scoped, `"private"` until Phase 14;
       `type: module`; `exports` map for ESM/CJS/types; `sideEffects:false` for tree-shaking).
 - [ ] **tsup** build → ESM + CJS + `.d.ts`; strict `tsconfig`.
 - [ ] ESLint + Prettier; **Vitest** (unit) with coverage; **Playwright** (browser e2e) wired.
@@ -411,17 +411,17 @@ origin succeeds and another origin is rejected).
 
 **Goal:** first-class React integration.
 
-- [x] `@codeskop-io/tracker-react`: a **second, minimal package folder** (`react/`), not a
+- [x] `@codeskop/tracker-react`: a **second, minimal package folder** (`react/`), not a
       subpath export — matches `docs/02` §2.1's package-layout diagram and `docs/05`
       §5.5's documented package name, and Phase 14 already plans to publish it
       separately. Wired as an npm workspace (root `package.json`'s new `"workspaces"`
-      field) with a `file:..`/`file:.` local dependency on `@codeskop-io/tracker` (no
+      field) with a `file:..`/`file:.` local dependency on `@codeskop/tracker` (no
       registry publish needed pre-Phase 14); own `tsup`/`vitest`/`eslint`(inherited)/
       `tsconfig` per `react/`. Exports `CodeskopProvider`, `CodeskopErrorBoundary`,
       `useCodeskop`, and `CodeskopContext` (`react/src/index.ts`). The **core stays
       dependency-free**: `dependencies: {}` in the root `package.json` is untouched;
       only `react/package.json` depends on `react` (`peerDependencies`) — a vanilla
-      `@codeskop-io/tracker` consumer's install is unaffected.
+      `@codeskop/tracker` consumer's install is unaffected.
       - `CodeskopProvider` (`react/src/CodeskopProvider.tsx`): calls `init(config)`
         once, inside a `useEffect` on mount — `config` is captured via `useRef` on
         first render, so a fresh inline `config={{ ... }}` object on every re-render
@@ -478,7 +478,7 @@ origin succeeds and another origin is rejected).
       `CodeskopContext.Provider` test-double override), and the SSR test above.
       100% statements/lines, 90% branches (only the `componentStack ?? undefined`
       fallback branch uncovered), well above the 80% bar. Own `size-limit` budget —
-      **2.5 KB gzipped** for the adapter alone (`react`/`@codeskop-io/tracker` excluded
+      **2.5 KB gzipped** for the adapter alone (`react`/`@codeskop/tracker` excluded
       via `size-limit`'s `ignore`, matching `docs/02` §2.1's "adapters are separate
       entry points" — a vanilla consumer of the core never pays for this), actual:
       **610 B gzipped**. The core's own budget is unaffected: still **10.35 KB of
@@ -576,12 +576,24 @@ package and the new `react/` workspace; the core's 12 KB budget is unaffected.
 > the `publish-dev.yml`/`release.yml` `--access` flags were updated to match. Nothing
 > in the runtime code (`src/`) changed — the plan gate was already fully implemented
 > and tested (see the last checklist item below).
+>
+> **Same-day follow-up (2026-07-15): scope stayed `@codeskop`.** While setting up the
+> real npm org, the user initially hit what looked like `codeskop` being taken and
+> created `codeskop-io` instead; both packages, all docs, CI workflows, and source
+> imports were renamed to `@codeskop-io` and a `1.0.0` version cut in the same PR. That
+> turned out to be premature — `codeskop` was in fact available, and the user
+> confirmed the real org is `codeskop`, not `codeskop-io`. The rename was fully
+> reverted (blanket `@codeskop-io` → `@codeskop` + bare `codeskop-io` → `codeskop`
+> across the same file set, api-extractor baselines and SBOM regenerated again) —
+> **the packages ship as `@codeskop/tracker` / `@codeskop/tracker-react`, version
+> `1.0.0`, org `codeskop`.** No lingering `@codeskop-io` references should exist
+> outside old commit history.
 
 **Original goal (superseded):** the SDK is fetchable **only by licensed customers**
 (D11, original).
 
 - [x] User decision: publish to the **private npm registry** (`registry.npmjs.org`,
-      `@codeskop-io` scope), not GitHub Packages. Both `package.json` (core) and
+      `@codeskop` scope), not GitHub Packages. Both `package.json` (core) and
       `react/package.json` had `"private": true` removed and gained:
       ```json
       "publishConfig": { "access": "restricted", "registry": "https://registry.npmjs.org/", "provenance": true }
@@ -595,7 +607,7 @@ package and the new `react/` workspace; the core's 12 KB budget is unaffected.
       CI) with OIDC (`docs/10` §10.4); this is the actual npm-documented behavior, not
       an assumption.
       Also found and fixed a real publish-blocker while validating: `react/package.json`
-      still depended on the core package via `"@codeskop-io/tracker": "file:.."` (Phase
+      still depended on the core package via `"@codeskop/tracker": "file:.."` (Phase
       12's placeholder, explicitly noted there as "no registry publish needed
       pre-Phase 14"). A `file:` spec would have published literally into the
       `-react` tarball's `package.json`, which breaks for every external installer (no
@@ -603,7 +615,7 @@ package and the new `react/` workspace; the core's 12 KB budget is unaffected.
       registry once core is published, and still resolved to the local workspace
       package by npm's own workspace linking today (verified: `npm install`
       regenerates the lockfile with the semver range while
-      `node_modules/@codeskop-io/tracker` stays a symlink to the workspace root; both
+      `node_modules/@codeskop/tracker` stays a symlink to the workspace root; both
       packages still build and all 403 (core) + 15 (react) tests still pass).
 - [x] Validated readiness without real npmjs.com credentials (none exist in this
       environment; no publish attempted — see `docs/10-publishing-setup.md`).
@@ -620,14 +632,14 @@ package and the new `react/` workspace; the core's 12 KB budget is unaffected.
       patterns, none found. Further verified the core tarball is a genuinely working
       package, not just clean: installed it fresh (`npm install <tgz>` into an empty
       project) and confirmed `import { init, identify, reset, recordException,
-      setEnabled, flush } from '@codeskop-io/tracker'` resolves all six as functions —
+      setEnabled, flush } from '@codeskop/tracker'` resolves all six as functions —
       the closest same-shape check available to "installs and runs from the registry"
       without a real registry.
 - [x] Per-customer **install tokens**: exact customer `.npmrc` snippet (per `docs/04`
       §4.6, updated for the npmjs.com decision — was drafted against a placeholder
       `registry.codeskop.com`) added to `docs/06-integration-guide.md` §6.2:
       ```ini
-      @codeskop-io:registry=https://registry.npmjs.org/
+      @codeskop:registry=https://registry.npmjs.org/
       //registry.npmjs.org/:_authToken=${CODESKOP_TOKEN}
       ```
       `docs/04-security-and-licensing.md` §4.6 updated to match (was still describing
@@ -649,8 +661,8 @@ package and the new `react/` workspace; the core's 12 KB budget is unaffected.
       installs and runs *from the actual npmjs.com registry* needs a real publish,
       which needs a real `NPM_TOKEN`, which needs a human with npmjs.com account access.
       Documented in full in **`docs/10-publishing-setup.md`**: (a) create the
-      `@codeskop-io` org on a plan supporting private packages, (b) generate an Automation
-      access token scoped to `@codeskop-io/*`, (c) add it as the `NPM_TOKEN` GitHub Actions
+      `@codeskop` org on a plan supporting private packages, (b) generate an Automation
+      access token scoped to `@codeskop/*`, (c) add it as the `NPM_TOKEN` GitHub Actions
       secret on `Codeskop-io/web-sdk`. **This cannot be done from this environment or
       by an agent** — no npmjs.com credentials exist here and none should be created
       here.
@@ -660,7 +672,7 @@ genuinely done and verified (updated 2026-07-15 for the public-distribution reve
 `publishConfig.access: "public"`, MIT license, no install-token flow); the actual
 publish is still blocked on the one manual step above (`docs/10-publishing-setup.md`)
 — do not check this gate as fully ✅ until a human completes it and a real
-`npm install @codeskop-io/tracker` from `registry.npmjs.org` (no token, no `.npmrc` entry)
+`npm install @codeskop/tracker` from `registry.npmjs.org` (no token, no `.npmrc` entry)
 has been confirmed to work end-to-end, followed by an init against both a licensed and
 an unlicensed key to confirm the runtime gate is what's actually restricting capture.
 > **Do not proceed to Phase 15 until this gate is checked.**

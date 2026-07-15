@@ -1,5 +1,5 @@
 /**
- * `@codeskop-io/tracker` public entry point (`docs/05-api-reference.md`,
+ * `@codeskop/tracker` public entry point (`docs/05-api-reference.md`,
  * finalized in `web-sdk-workflow.md` Phase 10). Every export below is a safe
  * no-op before `init()` and never throws into the host page (`docs/05`
  * §5.4) — see `facade.ts` for `init`/`identify`/`reset`/`setEnabled`/`flush`

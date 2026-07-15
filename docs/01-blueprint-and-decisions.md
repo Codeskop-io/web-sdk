@@ -1,6 +1,6 @@
 # 1. Web SDK — Blueprint & Decisions
 
-> Vision, scope, footprint budgets, and the locked decision log for `@codeskop-io/tracker`,
+> Vision, scope, footprint budgets, and the locked decision log for `@codeskop/tracker`,
 > the Codeskop **web** SDK. It is the browser counterpart to the Android SDK and a new
 > client of the **same** shipped ingest contract
 > ([`backend/docs/07` §7.5](../../backend/docs/07-mobile-sdk-ingest-readiness.md#75-the-locked-contract-build-to-this)).
