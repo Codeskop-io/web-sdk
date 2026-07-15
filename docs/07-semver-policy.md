@@ -1,6 +1,6 @@
 # 7. Web SDK — SemVer & Compatibility Policy
 
-> The compatibility contract for `@codeskop/tracker` and `@codeskop/tracker-react`,
+> The compatibility contract for `@codeskop-io/tracker` and `@codeskop-io/tracker-react`,
 > effective once the surface is frozen in Workflow Phase 13. Applies to **exactly** the
 > API documented in [`05-api-reference`](./05-api-reference.md) §5.1–5.5 — anything not
 > listed there (any module path other than the package root, any symbol the barrel
@@ -17,17 +17,28 @@ Standard [SemVer 2.0.0](https://semver.org/), `MAJOR.MINOR.PATCH`:
 | **MINOR** | Any additive, backward-compatible change (§7.3) |
 | **PATCH** | Bug fixes and internal changes with **no** effect on the public API's types or documented runtime behavior |
 
-Pre-1.0 (`0.x.y`, current: `0.1.0-beta.0`) follows the same MAJOR/MINOR/PATCH mapping
-one column shifted, per SemVer's own pre-1.0 convention — a `0.x` **MINOR** bump may
-still contain what would be a breaking change post-1.0. Phase 14 (licensed publishing)
-is the intended `1.0.0` cut; from that tag on, the mapping above is exact and a breaking
-change is never shipped in a `MINOR`/`PATCH`.
+**2026-07-15: cut to `1.0.0`** (Phase 14, the intended `1.0.0` cut, as this section
+originally anticipated) — both packages bumped from `0.1.0-beta.0` directly to
+`1.0.0` for the first public npm publish; there was no intermediate `0.x` release, so
+the pre-1.0 "one column shifted" convention below never applied in practice. From this
+version on, the MAJOR/MINOR/PATCH mapping above is exact and a breaking change is
+never shipped in a `MINOR`/`PATCH`.
 
-The core (`@codeskop/tracker`) and the React adapter (`@codeskop/tracker-react`) are
+<details>
+<summary>Historical note (pre-2026-07-15): the pre-1.0 convention this project used before its first release</summary>
+
+Pre-1.0 (`0.x.y`) follows the same MAJOR/MINOR/PATCH mapping one column shifted, per
+SemVer's own pre-1.0 convention — a `0.x` **MINOR** bump may still contain what would
+be a breaking change post-1.0. Kept here for context on how `0.1.0-beta.0` was allowed
+to evolve pre-release; no longer applicable now that `1.0.0` has shipped.
+
+</details>
+
+The core (`@codeskop-io/tracker`) and the React adapter (`@codeskop-io/tracker-react`) are
 versioned **independently** — they are separate packages (`docs/02` §2.1) with separate
 `api-extractor` baselines (§7.4) — but a `tracker-react` release always declares a
 [`peerDependencies`](../react/package.json) range wide enough to cover every
-`@codeskop/tracker` version it was actually tested against; narrowing that range to drop
+`@codeskop-io/tracker` version it was actually tested against; narrowing that range to drop
 support for an old core version is itself a breaking change for `tracker-react`.
 
 ## 7.2 Breaking changes (require a MAJOR bump)
@@ -137,7 +148,7 @@ A breaking removal is never shipped in the same release it's decided:
 
 ## 7.6 Scope note
 
-This policy governs `@codeskop/tracker` and `@codeskop/tracker-react`'s **own** public
+This policy governs `@codeskop-io/tracker` and `@codeskop-io/tracker-react`'s **own** public
 API surface only. It does not change, and is not a substitute for, the versioning of the
 shared ingest wire contract (`backend/docs/07` §7.5), which the Android SDK, the web
 SDK, and the backend all depend on jointly — a wire-contract change is coordinated

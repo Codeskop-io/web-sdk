@@ -1,6 +1,6 @@
 # Codeskop Web SDK — Documentation
 
-Reference docs for `@codeskop/tracker`, the Codeskop **web** SDK. The tracked build →
+Reference docs for `@codeskop-io/tracker`, the Codeskop **web** SDK. The tracked build →
 release plan lives one level up in [`../web-sdk-workflow.md`](../web-sdk-workflow.md).
 
 | Doc | What it covers |

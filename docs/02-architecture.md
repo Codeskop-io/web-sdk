@@ -1,6 +1,6 @@
 # 2. Web SDK — Architecture
 
-> How `@codeskop/tracker` is structured and how an event flows from capture to the
+> How `@codeskop-io/tracker` is structured and how an event flows from capture to the
 > backend. Mirrors the Android runtime architecture
 > ([`android/docs/02`](../../android/docs/02-architecture.md)) with browser-appropriate
 > primitives.
@@ -8,7 +8,7 @@
 ## 2.1 Package layout
 
 ```
-@codeskop/tracker            (core — zero deps, tree-shakeable)
+@codeskop-io/tracker            (core — zero deps, tree-shakeable)
   ├─ model/            event + envelope types (the §7.5 wire shape)
   ├─ core/             id-gen, redaction, fingerprint, sampling, state machine
   ├─ queue/            IndexedDB durable queue (+ in-memory fallback)
@@ -17,7 +17,7 @@
   ├─ capture/          fetch/XHR instrumentation, error/rejection handlers, heartbeat
   └─ Codeskop          the public facade (guarded entrypoints)
 
-@codeskop/tracker-react      (adapter — depends on react only)
+@codeskop-io/tracker-react      (adapter — depends on react only)
   └─ ErrorBoundary + provider/hook
 ```
 

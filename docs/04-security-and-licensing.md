@@ -78,7 +78,7 @@ The web equivalent:
 
 ## 4.6 Distribution & licensing (D11, revised 2026-07-15) — restricted at ingest, not install
 
-**Original D11** published `@codeskop/tracker`/`-react` to a private, token-gated npm
+**Original D11** published `@codeskop-io/tracker`/`-react` to a private, token-gated npm
 scope. That was reversed before the first real publish (nothing had shipped to
 npmjs.com yet): the code is already fully inspectable in any browser running it, so a
 private registry never protected anything — it only added install friction (per-customer
@@ -88,8 +88,8 @@ revised model puts both SDKs on the same footing:
 
 ### Public install, no gate
 
-- `@codeskop/tracker` (and `-react`) publish to the **public npm registry**
-  (`publishConfig.access: "public"`), MIT-licensed. `npm install @codeskop/tracker` works
+- `@codeskop-io/tracker` (and `-react`) publish to the **public npm registry**
+  (`publishConfig.access: "public"`), MIT-licensed. `npm install @codeskop-io/tracker` works
   for anyone, no token, no `.npmrc` entry, no org membership.
 
 ### Runtime plan gate (the actual restriction)

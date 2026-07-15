@@ -1,6 +1,6 @@
 # 6. Web SDK — Integration Guide
 
-> How to install and integrate `@codeskop/tracker`. The package is **public and free
+> How to install and integrate `@codeskop-io/tracker`. The package is **public and free
 > to install** (D11, revised 2026-07-15) — the only thing gating real capture is an
 > active Codeskop plan's public key, checked server-side. See
 > [`docs/04-security-and-licensing.md`](./04-security-and-licensing.md) §4.6.
@@ -26,11 +26,11 @@
 
 ## 6.2 Install
 
-`@codeskop/tracker` (and `-react`) are published to the **public npm registry** under
-the `@codeskop` scope — no token, no `.npmrc` entry, no org membership required.
+`@codeskop-io/tracker` (and `-react`) are published to the **public npm registry** under
+the `@codeskop-io` scope — no token, no `.npmrc` entry, no org membership required.
 
 ```bash
-npm install @codeskop/tracker
+npm install @codeskop-io/tracker
 ```
 
 ## 6.3 Initialize (vanilla)
@@ -39,7 +39,7 @@ Call `init` as early as possible (e.g. top of your entry module) so capture star
 your app code runs:
 
 ```ts
-import { init } from "@codeskop/tracker";
+import { init } from "@codeskop-io/tracker";
 
 init({
   apiKey: "cs_live_pk_…",
@@ -51,24 +51,24 @@ That's it — uncaught errors, unhandled rejections, and `fetch`/XHR failures + 
 now captured and delivered. Identify the user after login:
 
 ```ts
-import { identify, reset } from "@codeskop/tracker";
+import { identify, reset } from "@codeskop-io/tracker";
 onLogin((u) => identify(u.id, { plan: u.plan }));
 onLogout(() => reset());
 ```
 
-## 6.4 React (`@codeskop/tracker-react`)
+## 6.4 React (`@codeskop-io/tracker-react`)
 
 Requires `react`/`react-dom` `^18.0.0 || ^19.0.0` (peer dependency — the vanilla core
 stays dependency-free; only this adapter package pulls in React). Install it alongside
 the core:
 
 ```bash
-npm install @codeskop/tracker @codeskop/tracker-react
+npm install @codeskop-io/tracker @codeskop-io/tracker-react
 ```
 
 ```tsx
 import { createRoot } from "react-dom/client";
-import { CodeskopProvider, CodeskopErrorBoundary } from "@codeskop/tracker-react";
+import { CodeskopProvider, CodeskopErrorBoundary } from "@codeskop-io/tracker-react";
 
 createRoot(el).render(
   <CodeskopProvider config={{ apiKey: "cs_live_pk_…" }}>
@@ -83,7 +83,7 @@ createRoot(el).render(
 `config` object was passed on the **first** render and never re-runs `init()` on a later
 re-render, even if you pass a fresh inline `config={{ ... }}` literal every time. If you
 need to change config at runtime, call `init()` yourself (re-exported from
-`@codeskop/tracker`) rather than expecting the provider to react to a prop change.
+`@codeskop-io/tracker`) rather than expecting the provider to react to a prop change.
 
 `CodeskopErrorBoundary` catches render errors in its subtree (React error boundaries
 cannot catch errors from event handlers, async code, or `useEffect` — call
@@ -97,7 +97,7 @@ Inside any component (with or without a `CodeskopProvider` above it — every fu
 below is already a safe no-op before `init()` has run anywhere in the tree):
 
 ```tsx
-import { useCodeskop } from "@codeskop/tracker-react";
+import { useCodeskop } from "@codeskop-io/tracker-react";
 
 function Profile() {
   const { recordException, identify, reset, setEnabled, flush } = useCodeskop();
@@ -209,7 +209,7 @@ part of Workflow Phase 15 and corrected where it had drifted:
 
 **2026-07-15 update (D11 reversed):** distribution changed from private/token-gated to
 public npm (MIT). §6.1/§6.2 rewritten to drop the install-token prerequisite and the
-`.npmrc` snippet — `npm install @codeskop/tracker` now needs nothing but the registry
+`.npmrc` snippet — `npm install @codeskop-io/tracker` now needs nothing but the registry
 default. The runtime plan gate (§4.6) is unchanged and is now the *only* restriction;
 see `docs/04-security-and-licensing.md` §4.6 and `web-sdk-workflow.md` Phase 14 for the
 full rationale.

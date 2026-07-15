@@ -1,6 +1,6 @@
 {
-  "name": "@codeskop/tracker",
-  "version": "0.1.0-beta.0",
+  "name": "@codeskop-io/tracker",
+  "version": "1.0.0",
   "description": "Codeskop web SDK — browser error, network, and presence capture.",
   "type": "module",
   "sideEffects": false,
@@ -45,8 +45,8 @@
     "size": "size-limit",
     "api:check": "api-extractor run --verbose",
     "api:update": "api-extractor run --local --verbose",
-    "api:check:all": "npm run api:check && npm run api:check --workspace=@codeskop/tracker-react",
-    "api:update:all": "npm run api:update && npm run api:update --workspace=@codeskop/tracker-react"
+    "api:check:all": "npm run api:check && npm run api:check --workspace=@codeskop-io/tracker-react",
+    "api:update:all": "npm run api:update && npm run api:update --workspace=@codeskop-io/tracker-react"
   },
   "size-limit": [
     {

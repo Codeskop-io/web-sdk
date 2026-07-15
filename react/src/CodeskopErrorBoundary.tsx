@@ -6,7 +6,7 @@
  * path, `handled: true`), then renders `fallback` in place of the crashed
  * subtree.
  *
- * Imports `recordException` directly from `@codeskop/tracker` rather than
+ * Imports `recordException` directly from `@codeskop-io/tracker` rather than
  * through `useCodeskop()`/context: it is a process-wide singleton either way
  * (`context.ts`), a class component cannot call a Hook, and this keeps the
  * boundary usable standing alone, without requiring it to be nested inside a
@@ -15,7 +15,7 @@
  * already a safe no-op before `init()` regardless of nesting order).
  */
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { recordException } from '@codeskop/tracker';
+import { recordException } from '@codeskop-io/tracker';
 
 export interface CodeskopErrorBoundaryProps {
   children?: ReactNode;

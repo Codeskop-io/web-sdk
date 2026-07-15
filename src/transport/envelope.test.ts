@@ -14,7 +14,7 @@ const device: DeviceContext = {
 function baseContext(origin?: string): BuildBatchesContext {
   return {
     device,
-    app: { page: '/checkout', sdk_version: '0.1.0-beta.0', origin },
+    app: { page: '/checkout', sdk_version: '1.0.0', origin },
   };
 }
 

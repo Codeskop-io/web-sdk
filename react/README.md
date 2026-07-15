@@ -1,9 +1,9 @@
-# `@codeskop/tracker-react`
+# `@codeskop-io/tracker-react`
 
-[![npm version](https://img.shields.io/npm/v/@codeskop/tracker-react.svg)](https://www.npmjs.com/package/@codeskop/tracker-react)
-[![license](https://img.shields.io/npm/l/@codeskop/tracker-react.svg)](./LICENSE)
+[![npm version](https://img.shields.io/npm/v/@codeskop-io/tracker-react.svg)](https://www.npmjs.com/package/@codeskop-io/tracker-react)
+[![license](https://img.shields.io/npm/l/@codeskop-io/tracker-react.svg)](./LICENSE)
 
-First-class React integration for [`@codeskop/tracker`](https://www.npmjs.com/package/@codeskop/tracker)
+First-class React integration for [`@codeskop-io/tracker`](https://www.npmjs.com/package/@codeskop-io/tracker)
 — a provider, an error boundary, and a hook. Same free, MIT-licensed public
 distribution as the core package — installing needs no token or signup; a
 runtime plan gate is what actually restricts capture (invalid/unlicensed key
@@ -13,7 +13,7 @@ runtime plan gate is what actually restricts capture (invalid/unlicensed key
 ## Install
 
 ```bash
-npm install @codeskop/tracker @codeskop/tracker-react
+npm install @codeskop-io/tracker @codeskop-io/tracker-react
 ```
 
 No `.npmrc` or install token needed — both packages are public. See
@@ -22,7 +22,7 @@ No `.npmrc` or install token needed — both packages are public. See
 ## Usage
 
 ```tsx
-import { CodeskopProvider, CodeskopErrorBoundary } from "@codeskop/tracker-react";
+import { CodeskopProvider, CodeskopErrorBoundary } from "@codeskop-io/tracker-react";
 
 createRoot(el).render(
   <CodeskopProvider config={{ apiKey: "cs_live_pk_…" }}>
@@ -38,7 +38,7 @@ Inside the tree, `useCodeskop()` gives you `recordException`, `identify`,
 `CodeskopProvider` above it.
 
 ```tsx
-import { useCodeskop } from "@codeskop/tracker-react";
+import { useCodeskop } from "@codeskop-io/tracker-react";
 
 function Profile() {
   const { identify } = useCodeskop();

@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { useState, type ReactElement } from 'react';
-import type { CodeskopConfig } from '@codeskop/tracker';
-import { init } from '@codeskop/tracker';
+import type { CodeskopConfig } from '@codeskop-io/tracker';
+import { init } from '@codeskop-io/tracker';
 import { CodeskopProvider } from './CodeskopProvider.js';
 
-vi.mock('@codeskop/tracker', async () => {
-  const actual = await vi.importActual<typeof import('@codeskop/tracker')>('@codeskop/tracker');
+vi.mock('@codeskop-io/tracker', async () => {
+  const actual = await vi.importActual<typeof import('@codeskop-io/tracker')>('@codeskop-io/tracker');
   return { ...actual, init: vi.fn() };
 });
 

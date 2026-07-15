@@ -2,10 +2,10 @@
   "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:d7f58679-557a-4a93-b38c-bf46246fcc65",
+  "serialNumber": "urn:uuid:35846f48-a809-4dc5-ba42-0bdda2bc56ae",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-07-14T11:50:31.876Z",
+    "timestamp": "2026-07-15T16:09:42.151Z",
     "lifecycles": [
       {
         "phase": "build"
@@ -19,24 +19,27 @@
       }
     ],
     "component": {
-      "bom-ref": "@codeskop/tracker@0.1.0-beta.0",
+      "bom-ref": "@codeskop-io/tracker@1.0.0",
       "type": "library",
       "name": "webpack",
-      "version": "0.1.0-beta.0",
+      "version": "1.0.0",
       "scope": "required",
       "description": "Codeskop web SDK — browser error, network, and presence capture.",
-      "purl": "pkg:npm/%40codeskop/tracker@0.1.0-beta.0",
+      "purl": "pkg:npm/%40codeskop-io/tracker@1.0.0",
       "properties": [
         {
           "name": "cdx:npm:package:path",
           "value": ""
-        },
-        {
-          "name": "cdx:npm:package:private",
-          "value": "true"
         }
       ],
-      "externalReferences": []
+      "externalReferences": [],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
     }
   },
   "components": [
@@ -15518,24 +15521,27 @@
       ]
     },
     {
-      "bom-ref": "@codeskop/tracker-react@0.1.0-beta.0",
+      "bom-ref": "@codeskop-io/tracker-react@1.0.0",
       "type": "library",
       "name": "react",
-      "version": "0.1.0-beta.0",
+      "version": "1.0.0",
       "scope": "required",
-      "description": "First-class React integration for @codeskop/tracker — a provider, an error boundary, and a hook.",
-      "purl": "pkg:npm/%40codeskop/tracker-react@0.1.0-beta.0",
+      "description": "First-class React integration for @codeskop-io/tracker — a provider, an error boundary, and a hook.",
+      "purl": "pkg:npm/%40codeskop-io/tracker-react@1.0.0",
       "properties": [
         {
           "name": "cdx:npm:package:path",
           "value": "react"
-        },
-        {
-          "name": "cdx:npm:package:private",
-          "value": "true"
         }
       ],
-      "externalReferences": []
+      "externalReferences": [],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
     },
     {
       "bom-ref": "codeskop-tracker-react-example@0.0.0",
@@ -15543,7 +15549,7 @@
       "name": "example",
       "version": "0.0.0",
       "scope": "required",
-      "description": "Phase 12 (web-sdk-workflow.md) manual/demo harness: exercises @codeskop/tracker-react end-to-end against the mock ingest server (backend/mock-ingest-server) or a real staging/production key.",
+      "description": "Phase 12 (web-sdk-workflow.md) manual/demo harness: exercises @codeskop-io/tracker-react end-to-end against the mock ingest server (backend/mock-ingest-server) or a real staging/production key.",
       "purl": "pkg:npm/codeskop-tracker-react-example@0.0.0",
       "properties": [
         {
@@ -15560,9 +15566,9 @@
   ],
   "dependencies": [
     {
-      "ref": "@codeskop/tracker@0.1.0-beta.0",
+      "ref": "@codeskop-io/tracker@1.0.0",
       "dependsOn": [
-        "@codeskop/tracker-react@0.1.0-beta.0",
+        "@codeskop-io/tracker-react@1.0.0",
         "codeskop-tracker-react-example@0.0.0",
         "@eslint/js@10.0.1",
         "@microsoft/api-extractor@7.58.9",
@@ -15661,9 +15667,9 @@
       ]
     },
     {
-      "ref": "@codeskop/tracker-react@0.1.0-beta.0",
+      "ref": "@codeskop-io/tracker-react@1.0.0",
       "dependsOn": [
-        "@codeskop/tracker@0.1.0-beta.0",
+        "@codeskop-io/tracker@1.0.0",
         "@microsoft/api-extractor@7.58.9",
         "@testing-library/jest-dom@6.9.1",
         "@testing-library/react@16.3.2",
@@ -16401,8 +16407,8 @@
     {
       "ref": "codeskop-tracker-react-example@0.0.0",
       "dependsOn": [
-        "@codeskop/tracker@0.1.0-beta.0",
-        "@codeskop/tracker-react@0.1.0-beta.0",
+        "@codeskop-io/tracker@1.0.0",
+        "@codeskop-io/tracker-react@1.0.0",
         "react@19.2.7",
         "react-dom@19.2.7",
         "@types/react@19.2.17",

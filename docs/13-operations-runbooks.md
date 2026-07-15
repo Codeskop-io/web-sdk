@@ -149,16 +149,18 @@ release-engineering policy (`web-sdk-workflow.md` Phase 15)":
 
 - **Deprecation window:** per `docs/07` §7.5, a breaking removal is never shipped in
   the same release it's decided. The support window, now specified:
-  - **Pre-1.0** (current state, `0.1.0-beta.0`): a deprecated export is kept functioning
-    for **at least one MINOR release** after the release that first marks it
-    `@deprecated`.
-  - **Post-1.0**: a deprecated export is kept functioning for **at least one full MAJOR
-    version's support window** — i.e. it survives every MINOR/PATCH release within the
-    major version it was deprecated in, and is only eligible for removal in the *next*
+  - **Pre-1.0** (superseded 2026-07-15 — the SDK shipped `1.0.0` directly, skipping any
+    intermediate `0.x` release): a deprecated export would have been kept functioning
+    for **at least one MINOR release** after the release that first marked it
+    `@deprecated`. No longer applicable.
+  - **Post-1.0** (current state, `1.0.0`): a deprecated export is kept functioning for
+    **at least one full MAJOR version's support window** — i.e. it survives every
+    MINOR/PATCH release within the major version it was deprecated in, and is only
+    eligible for removal in the *next*
     MAJOR.
 - **Yanking a bad release** (distinct from planned deprecation — an already-published
   version turns out to be actively harmful, e.g. a regression that breaks capture or
-  leaks data): `npm deprecate @codeskop/tracker@<bad-version> "<reason>"` marks it in
+  leaks data): `npm deprecate @codeskop-io/tracker@<bad-version> "<reason>"` marks it in
   the registry (visible to anyone running `npm install`, doesn't block already-locked
   installs) — this requires the same Automation-token publish access as a real release
   (`docs/10` §10.2(b)), so it has the same "human with npmjs.com access" prerequisite
@@ -185,7 +187,7 @@ assignment that doesn't exist. Whoever staffs this in practice should:
 - Have (or be grantable) Django admin **staff** access to both
   `staging.api.codeskop.com/admin/` and `api.codeskop.com/admin/` — §13.1's drill is
   unusable without it.
-- Have (or know who holds) npmjs.com `@codeskop` org access for a yank/deprecate action
+- Have (or know who holds) npmjs.com `@codeskop-io` org access for a yank/deprecate action
   (§13.2) — this is the same access gap `docs/10-publishing-setup.md` already flags for
   the initial publish.
 - Own watching whatever health signal exists once `docs/12-sdk-health-telemetry-spec.md`
