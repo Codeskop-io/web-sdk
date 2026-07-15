@@ -1,16 +1,18 @@
 # Web SDK Build & Release Workflow (`@codeskop/tracker`)
 
 > The single, tracked, gated plan to build the Codeskop **web** SDK from an empty
-> `development` branch all the way to a **published, licensed, production-grade**
-> browser library — the web counterpart to the Android SDK
+> `development` branch all the way to a **published, production-grade** browser
+> library — the web counterpart to the Android SDK
 > ([`android/docs/10`](../android/docs/10-sdk-build-workflow.md) +
 > [`11`](../android/docs/11-sdk-production-readiness.md)), collapsed into one workflow
 > so web and mobile can reach release together.
 >
 > This is a *working tracker*: phases complete in order, each gated by an exit
 > checkbox. **Do not start a phase until the previous phase's gate is checked.** When
-> every gate here is checked, the web SDK is published to the private registry and
-> installable by any *licensed* customer with one dependency line.
+> every gate here is checked, the web SDK is published to the **public** npm registry
+> (D11, revised 2026-07-15) and installable by anyone with one dependency line — see
+> Phase 14 for the reversal from the original private/licensed-install plan. What's
+> actually gated is the runtime plan (`docs/04` §4.6), not the install.
 
 - **Owner:** Web SDK team
 - **Package:** `@codeskop/tracker` (TypeScript, ESM + CJS + types, built with **tsup**).
@@ -51,7 +53,7 @@ owner merges, and the next phase branches from the updated `development`.
 | **Functional** | Captures JS errors, unhandled rejections, `fetch`/XHR failures + latency, and heartbeats; offline-durable; validated against the mock then the real backend |
 | **Small** | Tree-shakeable ESM; core gzipped bundle within budget (see `docs/01` §1.4) |
 | **Secure** | Public ingest key only (`cs_*_pk_…`, never the secret); origin-bound; redaction enforced; remote kill-switch |
-| **Licensed (not free)** | Private scoped package; install gated by a subscription-tied token; runtime plan gating (D11) |
+| **Licensed (not free)** | Public, MIT-licensed package; install is free and open; runtime plan gating is the restriction (D11, revised 2026-07-15) |
 | **Stable API** | Public API frozen, SemVer, `.d.ts` API report checked in CI |
 | **Operable** | Release pipeline (tag → publish), SDK-health telemetry, kill-switch drill, runbooks |
 | **Documented** | Quickstart + framework + troubleshooting; changelog |
@@ -63,7 +65,7 @@ owner merges, and the next phase branches from the updated `development`.
 | Browser (evergreen) ESM + CJS; TypeScript types | Legacy IE; React-Native (covered by mobile) |
 | Vanilla core + a React adapter | Vue/Angular/Svelte adapters (fast-follow) |
 | Same `POST /v1/events` + `GET /v1/config` contract | Any new backend contract changes |
-| Private, licensed npm distribution | Public/free distribution |
+| Public, MIT-licensed npm distribution + runtime plan gating | A private/token-gated install (original D11, reversed 2026-07-15) |
 
 ## Progress tracker
 
@@ -83,10 +85,10 @@ owner merges, and the next phase branches from the updated `development`.
 | 11 | Real backend integration (staging → production) | ⬜ | 🔄 |
 | 12 | React adapter | ✅ | ✅ |
 | 13 | API freeze, security & privacy review, SBOM | ✅ | ✅ |
-| 14 | Private packaging & licensed publishing | ⬜ | ⬜ |
+| 14 | Public packaging & key-gated publishing | ⬜ | ⬜ |
 | 15 | Release engineering, docs & GA operations | 🟡 | 🔄 |
 
-**Released for licensed customers = all sixteen gates ✅.**
+**Released for GA = all sixteen gates ✅.**
 
 ---
 
@@ -553,9 +555,42 @@ package and the new `react/` workspace; the core's 12 KB budget is unaffected.
 
 ---
 
-## Phase 14 — Private packaging & licensed publishing
+## Phase 14 — Public packaging & key-gated publishing
 
-**Goal:** the SDK is fetchable **only by licensed customers** (D11).
+> **2026-07-15 revision: D11 reversed.** The checklist below (all still historically
+> accurate) describes the *original* plan — private npm scope + per-customer install
+> token. That was reversed before any real publish happened: the SDK's source is
+> already fully inspectable in any browser running it, so a private registry added
+> install friction (paid npm org, per-customer tokens, `.npmrc` management) without
+> protecting anything. The runtime plan gate (last checklist item below) was always
+> the actual restriction and is unchanged — it now stands alone, the same model
+> Android already uses (public Maven Central, gated by the key server-side). See
+> `docs/04-security-and-licensing.md` §4.6 for the full writeup.
+>
+> **What actually changed in code:** both `package.json`s now carry
+> `publishConfig.access: "public"` and `"license": "MIT"` (was `"restricted"` /
+> `"UNLICENSED"`); an MIT `LICENSE` file was added to both package roots; the
+> per-customer `.npmrc`/`CODESKOP_TOKEN` flow was removed from `docs/06` §6.2 and
+> `docs/11` §11.1; `docs/10-publishing-setup.md` §10.2(a) no longer requires a paid npm
+> org (public scoped packages are free); both `README.md`s and `publish-workflow.md` /
+> the `publish-dev.yml`/`release.yml` `--access` flags were updated to match. Nothing
+> in the runtime code (`src/`) changed — the plan gate was already fully implemented
+> and tested (see the last checklist item below).
+>
+> **Same-day follow-up (2026-07-15): scope stayed `@codeskop`.** While setting up the
+> real npm org, the user initially hit what looked like `codeskop` being taken and
+> created `codeskop-io` instead; both packages, all docs, CI workflows, and source
+> imports were renamed to `@codeskop-io` and a `1.0.0` version cut in the same PR. That
+> turned out to be premature — `codeskop` was in fact available, and the user
+> confirmed the real org is `codeskop`, not `codeskop-io`. The rename was fully
+> reverted (blanket `@codeskop-io` → `@codeskop` + bare `codeskop-io` → `codeskop`
+> across the same file set, api-extractor baselines and SBOM regenerated again) —
+> **the packages ship as `@codeskop/tracker` / `@codeskop/tracker-react`, version
+> `1.0.0`, org `codeskop`.** No lingering `@codeskop-io` references should exist
+> outside old commit history.
+
+**Original goal (superseded):** the SDK is fetchable **only by licensed customers**
+(D11, original).
 
 - [x] User decision: publish to the **private npm registry** (`registry.npmjs.org`,
       `@codeskop` scope), not GitHub Packages. Both `package.json` (core) and
@@ -633,10 +668,13 @@ package and the new `react/` workspace; the core's 12 KB budget is unaffected.
       here.
 
 **Exit gate** — 🟡 Partially checked: packaging, tooling, docs, and the runtime gate are
-genuinely done and verified; the actual private-registry publish is blocked on the one
-manual step above (`docs/10-publishing-setup.md`) — do not check this gate as fully ✅
-until a human completes it and a real `npm install @codeskop/tracker` from
-`registry.npmjs.org` with a licensed token has been confirmed to work end-to-end.
+genuinely done and verified (updated 2026-07-15 for the public-distribution reversal —
+`publishConfig.access: "public"`, MIT license, no install-token flow); the actual
+publish is still blocked on the one manual step above (`docs/10-publishing-setup.md`)
+— do not check this gate as fully ✅ until a human completes it and a real
+`npm install @codeskop/tracker` from `registry.npmjs.org` (no token, no `.npmrc` entry)
+has been confirmed to work end-to-end, followed by an init against both a licensed and
+an unlicensed key to confirm the runtime gate is what's actually restricting capture.
 > **Do not proceed to Phase 15 until this gate is checked.**
 
 ---

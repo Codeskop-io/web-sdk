@@ -6,24 +6,19 @@
 > (`backend/apps/ingest/`, `backend/apps/accounts/`) rather than guessing. Every claim
 > below cites the file it's verified against.
 
-## 11.1 Install / token setup
+## 11.1 Install setup
 
-**`npm install @codeskop/tracker` fails with 401/403.**
+**2026-07-15: `@codeskop/tracker` is a public, MIT-licensed npm package (D11 reversed —
+see `docs/04` §4.6). `npm install @codeskop/tracker` needs no token, no `.npmrc`
+entry, and no npm org membership.** If you're seeing an install-time 401/403, it isn't
+this package gating access — check for a stale `.npmrc` scope override left over from
+another private registry, or a corporate proxy/registry mirror intercepting the
+`@codeskop` scope. Confirm the registry line, if any exists in your `.npmrc`, is exactly
+`@codeskop:registry=https://registry.npmjs.org/` (or remove it entirely — the public
+registry is the default).
 
-- Your `.npmrc` is missing the scope/token lines from `docs/06` §6.2, or
-  `$CODESKOP_TOKEN` isn't set in the shell/CI secret it's read from.
-- The token has expired or been revoked (subscription lapsed, or someone rotated it
-  from the dashboard). Per-customer install tokens are **read-only** and tied to an
-  active subscription (`docs/04` §4.6) — a lapsed subscription revokes install access,
-  not just runtime capture.
-- You're confusing the **customer install token** (`docs/06` §6.2 — read-only, installs
-  the package) with the **org Automation token** (`docs/10` §10.2(b) — publish rights,
-  internal-only, lives in `Codeskop-io/web-sdk`'s `NPM_TOKEN` CI secret). A customer
-  should never have, need, or be given the Automation token.
-- Confirm the registry line is exactly `@codeskop:registry=https://registry.npmjs.org/`
-  — a typo'd scope silently falls through to the public registry, which doesn't carry
-  `@codeskop/*` at all (private, `publishConfig.access: "restricted"`) and 404s instead
-  of 401ing, a different-looking failure with the same root cause.
+If the package installs fine but the SDK never captures anything, that's the **runtime
+plan gate**, not install access — see §11.2 below, it's almost always cause 1 or 2 there.
 
 **`npm install` succeeds but `import { init } from "@codeskop/tracker"` doesn't resolve
 (TypeScript can't find types, or the module fails to load).**

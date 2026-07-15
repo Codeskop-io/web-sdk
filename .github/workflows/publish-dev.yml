@@ -128,9 +128,9 @@ jobs:
       - name: Publish core to the 'next' dist-tag
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --tag next --provenance --access restricted
+        run: npm publish --tag next --provenance --access public
 
       - name: Publish react adapter to the 'next' dist-tag
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --workspace=@codeskop/tracker-react --tag next --provenance --access restricted
+        run: npm publish --workspace=@codeskop/tracker-react --tag next --provenance --access public

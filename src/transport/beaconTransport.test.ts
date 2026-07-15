@@ -27,7 +27,7 @@ const device: DeviceContext = {
 
 const context: BuildBatchesContext = {
   device,
-  app: { page: '/checkout', sdk_version: '0.1.0-beta.0', origin: 'https://app.customer.com' },
+  app: { page: '/checkout', sdk_version: '1.0.0', origin: 'https://app.customer.com' },
 };
 
 function heartbeat(id: string): CodeskopEvent {

@@ -165,7 +165,7 @@ stream's `@microsoft/api-extractor` addition):
   `react` (its directory) instead of `@codeskop/tracker-react`, and the demo harness
   as `example` instead of `codeskop-tracker-react-example`. In every case the `purl`
   field carries the correct scoped/real name (e.g.
-  `pkg:npm/%40codeskop/tracker@0.1.0-beta.0`). This is an `npm sbom` display quirk, not
+  `pkg:npm/%40codeskop/tracker@1.0.0`). This is an `npm sbom` display quirk, not
   a data error, and was left as-is rather than hand-edited.
 
 Regenerate before each release: `npm sbom --sbom-format cyclonedx > sbom/tracker-sbom.cyclonedx.json`.

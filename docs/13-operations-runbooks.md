@@ -149,12 +149,14 @@ release-engineering policy (`web-sdk-workflow.md` Phase 15)":
 
 - **Deprecation window:** per `docs/07` §7.5, a breaking removal is never shipped in
   the same release it's decided. The support window, now specified:
-  - **Pre-1.0** (current state, `0.1.0-beta.0`): a deprecated export is kept functioning
-    for **at least one MINOR release** after the release that first marks it
-    `@deprecated`.
-  - **Post-1.0**: a deprecated export is kept functioning for **at least one full MAJOR
-    version's support window** — i.e. it survives every MINOR/PATCH release within the
-    major version it was deprecated in, and is only eligible for removal in the *next*
+  - **Pre-1.0** (superseded 2026-07-15 — the SDK shipped `1.0.0` directly, skipping any
+    intermediate `0.x` release): a deprecated export would have been kept functioning
+    for **at least one MINOR release** after the release that first marked it
+    `@deprecated`. No longer applicable.
+  - **Post-1.0** (current state, `1.0.0`): a deprecated export is kept functioning for
+    **at least one full MAJOR version's support window** — i.e. it survives every
+    MINOR/PATCH release within the major version it was deprecated in, and is only
+    eligible for removal in the *next*
     MAJOR.
 - **Yanking a bad release** (distinct from planned deprecation — an already-published
   version turns out to be actively harmful, e.g. a regression that breaks capture or

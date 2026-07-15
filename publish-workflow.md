@@ -99,8 +99,8 @@ is no automation tying the two together.
 
 | dist-tag | Published by | Version shape | Who installs it |
 |----------|---------------|----------------|-------------------|
-| `next` | `publish-dev.yml`, on every merge to `development` | `<package.json version>-dev.<short-sha>`, e.g. `0.1.0-beta.0-dev.a1b2c3d` | Internal dogfooding / anyone who explicitly opts in with `npm install @codeskop/tracker@next` |
-| `latest` | `release.yml`, on a `vX.Y.Z` tag | Exactly `package.json`'s version (e.g. `0.1.0-beta.0`) | Everyone — the default `npm install @codeskop/tracker` resolves to whatever `latest` points at |
+| `next` | `publish-dev.yml`, on every merge to `development` | `<package.json version>-dev.<short-sha>`, e.g. `1.0.0-dev.a1b2c3d` | Internal dogfooding / anyone who explicitly opts in with `npm install @codeskop/tracker@next` |
+| `latest` | `release.yml`, on a `vX.Y.Z` tag | Exactly `package.json`'s version (e.g. `1.0.0`) | Everyone — the default `npm install @codeskop/tracker` resolves to whatever `latest` points at |
 
 The `next` version is **computed at publish time**, not written back to
 `development` — `publish-dev.yml` mutates `package.json`'s (and
@@ -115,7 +115,7 @@ every event's `context.app.sdk_version`, `docs/03` §3.3) is a manual literal th
 mirrors `package.json`'s version **and is only bumped as part of the manual release
 process (§3)** — it is *not* touched by `publish-dev.yml`'s computed version. A `next`
 prerelease's telemetry `sdk_version` field will therefore read the last hand-bumped
-release version (e.g. `0.1.0-beta.0`), not the synthetic `-dev.<sha>` suffix. This is
+release version (e.g. `1.0.0`), not the synthetic `-dev.<sha>` suffix. This is
 a cosmetic gap in an internal-only channel, not a customer-facing one — `latest`
 releases don't have this problem, since `release.yml`'s version-match check (§3.2)
 fails the release if `SDK_VERSION` wasn't bumped too.
@@ -149,17 +149,22 @@ fails the release if `SDK_VERSION` wasn't bumped too.
   missed. (`react/package.json`'s version is checked too, but only produces a
   `::warning::`, not a failure — see the independent-versioning note in §3.1.)
 - Publishes `@codeskop/tracker` to the `latest` dist-tag:
-  `npm publish --tag latest --provenance --access restricted`.
+  `npm publish --tag latest --provenance --access public`.
 - Publishes `@codeskop/tracker-react` the same way, at **its own** current
   `react/package.json` version (`npm publish --workspace=@codeskop/tracker-react
-  --tag latest --provenance --access restricted`).
+  --tag latest --provenance --access public`).
 - Runs `gh release create "$GITHUB_REF_NAME" --generate-notes --title
   "$GITHUB_REF_NAME"` — same convention as `backend`'s and `landing`'s `release.yml`.
 
-`--provenance` and `--access restricted` here are actually redundant with both
+`--provenance` and `--access public` here are actually redundant with both
 packages' committed `publishConfig` (`docs/10-publishing-setup.md` §10.1) — they're
 spelled out explicitly in the workflow anyway so the publish command is
 self-documenting without needing to cross-reference `package.json`.
+
+> **2026-07-15: distribution reversed from private/restricted to public** (D11) — see
+> `docs/04-security-and-licensing.md` §4.6. `--access public` replaces the original
+> `--access restricted` throughout this file and both workflow ymls; the packages are
+> MIT-licensed and installable without a token.
 
 ## 4. The `NPM_TOKEN` secret
 
@@ -171,7 +176,8 @@ agent or CI job in this workspace has or should have.
 **Full one-time setup steps are in
 [`docs/10-publishing-setup.md`](./docs/10-publishing-setup.md)** — summarized:
 
-1. Create/confirm the `codeskop` npm org (paid plan, for private packages).
+1. Create/confirm the `codeskop` npm org (a free org — public scoped packages don't
+   require a paid plan).
 2. Generate an **Automation** access token (not "Publish") scoped to `@codeskop/*`.
 3. Add it as a GitHub Actions secret on `Codeskop-io/web-sdk`: **Settings → Secrets
    and variables → Actions → New repository secret**, named exactly `NPM_TOKEN`.
