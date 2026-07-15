@@ -168,18 +168,21 @@ self-documenting without needing to cross-reference `package.json`.
 
 ## 4. The `NPM_TOKEN` secret
 
-Both `publish-dev.yml` and `release.yml` need an `NPM_TOKEN` repository secret — an
-npm **Automation** token scoped to `@codeskop/*` with publish rights. **This does not
-exist yet** — creating it requires a human with npmjs.com account access, which no
-agent or CI job in this workspace has or should have.
+Both `publish-dev.yml` and `release.yml` need an `NPM_TOKEN` repository secret — a
+granular npm access token (Read and write) scoped to the `@codeskop` scope and the
+`codeskop` org, with publish rights. This is now set up and has been exercised for
+real (see the incident note below).
 
 **Full one-time setup steps are in
 [`docs/10-publishing-setup.md`](./docs/10-publishing-setup.md)** — summarized:
 
 1. Create/confirm the `codeskop` npm org (a free org — public scoped packages don't
    require a paid plan).
-2. Generate an **Automation** access token (not "Publish") scoped to `@codeskop/*`.
-3. Add it as a GitHub Actions secret on `Codeskop-io/web-sdk`: **Settings → Secrets
+2. **Set the npm account's 2FA mode to "Authorization only"** (not "Authorization and
+   Publishing") — required for any token, including a granular one, to publish from CI
+   without a live OTP. See the incident note below for what happens if this is skipped.
+3. Generate a granular access token scoped to `@codeskop`/`codeskop`, Read and write.
+4. Add it as a GitHub Actions secret on `Codeskop-io/web-sdk`: **Settings → Secrets
    and variables → Actions → New repository secret**, named exactly `NPM_TOKEN`.
 
 Until that secret exists, both `publish-dev.yml` and `release.yml` are wired
@@ -187,6 +190,12 @@ correctly but their publish steps **fail on purpose** with an explicit
 `::error::NPM_TOKEN repository secret is not set...` message pointing back at
 `docs/10-publishing-setup.md` — not a silent skip. `ci.yml` never touches this secret
 and is unaffected.
+
+**Real incident (first live `publish-dev.yml` run):** failed with `npm error code
+EOTP` / "This operation requires a one-time password from your authenticator" —
+the account's 2FA mode was still "Authorization and Publishing" when the token was
+generated. Fixed by switching to "Authorization only"; no new token was needed. Full
+writeup: `docs/10-publishing-setup.md` §10.6.1.
 
 ## 5. Rollback / yank procedure
 

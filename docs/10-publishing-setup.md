@@ -110,16 +110,30 @@ to prove the package came from CI, not from someone's laptop.
    longer publishes).
 3. Add any teammates who need publish rights as org members with the appropriate role.
 
-### (b) Generate an Automation access token
+### (b) Generate a CI publish token
 
-1. From the `codeskop` org (or a machine/bot account with publish rights to it), go to
-   **Access Tokens** in npmjs.com account settings.
-2. Generate a new **Automation** token (not "Publish" — Automation tokens are the type
-   meant for unattended CI publishing and bypass 2FA-on-publish prompts).
-3. Scope it to the `@codeskop` packages/org only (not "all packages" on the account),
-   with publish permission. This token is **org-side, publish-only** — there is no
-   customer-facing counterpart anymore, since installing the package requires no token
-   at all.
+npmjs.com's current token UI is **granular access tokens** — there is no explicit
+"Automation" token type to pick anymore (that was the legacy token system). A granular
+token is still subject to your **account-level** two-factor setting, which is the part
+that actually determines whether CI can publish without a live OTP:
+
+1. **First, set the account's 2FA mode to "Authorization only"** (not "Authorization
+   and Publishing"): npmjs.com → your avatar → **Account Settings** → **Two-Factor
+   Authentication** → change the mode. This still requires 2FA to log in and manage the
+   account; it's specifically the *publish* action that stops demanding a live OTP —
+   which is what CI needs, since no GitHub Actions runner has an authenticator.
+   **Skipping this step is the #1 cause of CI publish failing with `npm error code
+   EOTP` / "This operation requires a one-time password"** — confirmed for real: the
+   first `publish-dev.yml` run against a granular token with the account still on
+   "Authorization and Publishing" failed exactly this way (see §10.6.1 below).
+2. From the `codeskop` org (or a machine/bot account with publish rights to it), go to
+   **Access Tokens** in npmjs.com account settings → **Generate New Token** → **Granular
+   Access Token**.
+3. Permissions: **Read and write**. Under **Packages and scopes**, choose "Only select
+   packages and scopes" and select the **`@codeskop`** scope (not "All packages"). Under
+   **Organizations**, select **`codeskop`**. This token is **org-side, publish-only** —
+   there is no customer-facing counterpart anymore, since installing the package
+   requires no token at all.
 4. Copy the token immediately — npmjs.com shows it only once.
 
 ### (c) Add it as a GitHub Actions secret
@@ -186,3 +200,23 @@ on the code side — the `@codeskop` rename, the `1.0.0` version bump (both
 `package.json`s + `src/core/version.ts`'s `SDK_VERSION`), public access + MIT license,
 `npm publish --dry-run`, `npm pack` tarball audit, regenerated API reports/SBOM, and
 the runtime plan-gate re-verification — is done and doesn't require npmjs.com access.
+
+### 10.6.1 Real incident: first `publish-dev.yml` run failed with `EOTP`
+
+The first live CI publish attempt (merge to `development`, triggering `publish-dev.yml`'s
+`next`-tag prerelease) got all the way through building the tarball, signing provenance,
+and starting the actual registry write — then failed:
+
+```
+npm error code EOTP
+npm error This operation requires a one-time password from your authenticator.
+```
+
+Root cause: the `NPM_TOKEN` secret was a **granular access token**, and the npm account
+it belongs to still had two-factor authentication set to **"Authorization and
+Publishing"** — which requires a live OTP for every publish, token or not. No CI runner
+can supply one. Fixed by changing the account's 2FA mode to **"Authorization only"**
+(§10.2(b) step 1) — no new token needed, the same granular token started working
+immediately. If this error resurfaces after the fix, check whether the 2FA setting got
+reset (e.g. by an npm support action, or a different admin re-enabling it), not the
+token itself.
