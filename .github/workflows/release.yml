@@ -21,7 +21,6 @@ concurrency:
 
 permissions:
   contents: write # create the GitHub Release
-  id-token: write # required for `npm publish`'s provenance attestation (publishConfig.provenance: true)
 
 jobs:
   release:
@@ -139,12 +138,12 @@ jobs:
       - name: Publish core to the 'latest' dist-tag
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --tag latest --provenance --access public
+        run: npm publish --tag latest --access public
 
       - name: Publish react adapter to the 'latest' dist-tag
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --workspace=@codeskop/tracker-react --tag latest --provenance --access public
+        run: npm publish --workspace=@codeskop/tracker-react --tag latest --access public
 
       - name: Publish GitHub Release
         env:

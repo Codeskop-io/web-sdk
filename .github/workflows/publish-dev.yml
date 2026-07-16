@@ -9,9 +9,10 @@
 # reusable/composite workflow for it, matching the sibling repos' convention
 # of self-contained workflow files) before ever attempting to publish.
 #
-# Requires the `NPM_TOKEN` repository secret (an npm Automation token scoped to
-# `@codeskop/*` — see docs/10-publishing-setup.md). If it isn't set yet, the
-# publish step fails loudly with an explicit error, not a silent skip.
+# Requires the `NPM_TOKEN` repository secret (a granular npm access token scoped
+# to `@codeskop`/`codeskop`, read+write — see docs/10-publishing-setup.md). If it
+# isn't set yet, the publish step fails loudly with an explicit error, not a
+# silent skip.
 name: Publish (dev prerelease)
 
 on:
@@ -24,7 +25,6 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write # required for `npm publish`'s provenance attestation (publishConfig.provenance: true)
 
 jobs:
   publish:
@@ -128,9 +128,9 @@ jobs:
       - name: Publish core to the 'next' dist-tag
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --tag next --provenance --access public
+        run: npm publish --tag next --access public
 
       - name: Publish react adapter to the 'next' dist-tag
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --workspace=@codeskop/tracker-react --tag next --provenance --access public
+        run: npm publish --workspace=@codeskop/tracker-react --tag next --access public

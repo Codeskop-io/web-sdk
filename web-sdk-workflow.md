@@ -588,6 +588,17 @@ package and the new `react/` workspace; the core's 12 KB budget is unaffected.
 > **the packages ship as `@codeskop/tracker` / `@codeskop/tracker-react`, version
 > `1.0.0`, org `codeskop`.** No lingering `@codeskop-io` references should exist
 > outside old commit history.
+>
+> **Follow-up (2026-07-16): provenance dropped after two more real CI failures.** The
+> first real `publish-dev.yml` run against a live `NPM_TOKEN` failed `EOTP` (npm
+> account 2FA required a live OTP the CI runner couldn't supply — fixed with a fresh
+> granular token after switching the account to "Authorization only", not by the
+> account-setting change alone). The next run got past auth and failed `422`: npm
+> provenance (`publishConfig.provenance: true`, `--provenance`, `id-token: write`)
+> requires the GitHub source repo to be **public**, and `Codeskop-io/web-sdk` is
+> private. Rather than making the repo public, provenance was removed entirely from
+> both `package.json`s and both workflows. Full incident writeups:
+> `docs/10-publishing-setup.md` §10.6.1 (EOTP) and §10.6.2 (provenance/422).
 
 **Original goal (superseded):** the SDK is fetchable **only by licensed customers**
 (D11, original).
@@ -669,12 +680,14 @@ package and the new `react/` workspace; the core's 12 KB budget is unaffected.
 
 **Exit gate** — 🟡 Partially checked: packaging, tooling, docs, and the runtime gate are
 genuinely done and verified (updated 2026-07-15 for the public-distribution reversal —
-`publishConfig.access: "public"`, MIT license, no install-token flow); the actual
-publish is still blocked on the one manual step above (`docs/10-publishing-setup.md`)
-— do not check this gate as fully ✅ until a human completes it and a real
-`npm install @codeskop/tracker` from `registry.npmjs.org` (no token, no `.npmrc` entry)
-has been confirmed to work end-to-end, followed by an init against both a licensed and
-an unlicensed key to confirm the runtime gate is what's actually restricting capture.
+`publishConfig.access: "public"`, MIT license, no install-token flow; updated
+2026-07-16 to drop provenance — see the follow-up note above); three real CI publish
+attempts have run and none has succeeded yet (`EOTP`, then `422` on provenance, both
+fixed — see §10.6.1/§10.6.2) — do not check this gate as fully ✅ until a real publish
+actually lands and `npm install @codeskop/tracker` from `registry.npmjs.org` (no
+token, no `.npmrc` entry) has been confirmed to work end-to-end, followed by an init
+against both a licensed and an unlicensed key to confirm the runtime gate is what's
+actually restricting capture.
 > **Do not proceed to Phase 15 until this gate is checked.**
 
 ---
