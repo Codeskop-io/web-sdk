@@ -3,21 +3,18 @@
 [![npm version](https://img.shields.io/npm/v/@codeskop/tracker-react.svg)](https://www.npmjs.com/package/@codeskop/tracker-react)
 [![license](https://img.shields.io/npm/l/@codeskop/tracker-react.svg)](./LICENSE)
 
-First-class React integration for [`@codeskop/tracker`](https://www.npmjs.com/package/@codeskop/tracker)
-— a provider, an error boundary, and a hook. Same free, MIT-licensed public
-distribution as the core package — installing needs no token or signup; a
-runtime plan gate is what actually restricts capture (invalid/unlicensed key
-⇒ safe no-op) — see
-[`docs/04-security-and-licensing.md`](https://github.com/Codeskop-io/web-sdk/blob/main/docs/04-security-and-licensing.md).
+First-class React integration for
+[`@codeskop/tracker`](https://www.npmjs.com/package/@codeskop/tracker) — a provider, an
+error boundary, and a hook. Same free, MIT-licensed public distribution as the core
+package — no token or signup needed to install. A public key from an active
+[Codeskop](https://www.codeskop.com) plan is what enables capture; without one, it
+safely does nothing.
 
 ## Install
 
 ```bash
 npm install @codeskop/tracker @codeskop/tracker-react
 ```
-
-No `.npmrc` or install token needed — both packages are public. See
-[`docs/06-integration-guide.md`](https://github.com/Codeskop-io/web-sdk/blob/main/docs/06-integration-guide.md).
 
 ## Usage
 
@@ -51,5 +48,8 @@ function Profile() {
 
 `react` `^18.0.0 || ^19.0.0`.
 
-See the full [integration guide](https://github.com/Codeskop-io/web-sdk/blob/main/docs/06-integration-guide.md#64-react) for
-initialization order, staging vs. production, and troubleshooting.
+## Links
+
+- Website: [codeskop.com](https://www.codeskop.com)
+- GitHub: [github.com/Codeskop-io](https://github.com/Codeskop-io)
+- License: [MIT](./LICENSE)

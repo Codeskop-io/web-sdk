@@ -1,7 +1,8 @@
 {
   "name": "@codeskop/tracker-react",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "First-class React integration for @codeskop/tracker — a provider, an error boundary, and a hook.",
+  "homepage": "https://www.codeskop.com",
   "type": "module",
   "sideEffects": false,
   "license": "MIT",

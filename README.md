@@ -4,18 +4,15 @@
 [![license](https://img.shields.io/npm/l/@codeskop/tracker.svg)](./LICENSE)
 [![bundle size](https://img.shields.io/bundlephobia/minzip/@codeskop/tracker)](https://bundlephobia.com/package/@codeskop/tracker)
 
-The Codeskop **web** SDK — a tiny, tree-shakeable TypeScript library that captures
-uncaught errors, unhandled rejections, `fetch`/XHR failures + latency, and presence
-heartbeats from a browser app and delivers them to the Codeskop ingest backend. It is
-the web counterpart to the [Android SDK](../android) and a client of the **same**
-[locked ingest contract](../backend/docs/07-mobile-sdk-ingest-readiness.md#75-the-locked-contract-build-to-this).
+A tiny, tree-shakeable TypeScript library that captures uncaught errors, unhandled
+promise rejections, `fetch`/XHR failures and latency, and presence heartbeats from a
+browser app, and sends them to [Codeskop](https://www.codeskop.com). Zero runtime
+dependencies.
 
-**Free and open to install** — `@codeskop/tracker` is MIT-licensed and published to
-the public npm registry, no signup or token required to `npm install` and read the
-source. What's gated is **ingest**: initialize with a valid Codeskop public key from an
-active plan and it captures and sends; without one it's a safe, permanent no-op — the
-same model as the Android SDK (public Maven Central, gated server-side). See
-[`docs/04-security-and-licensing.md`](./docs/04-security-and-licensing.md).
+**Free and open to install.** `@codeskop/tracker` is MIT-licensed and published to the
+public npm registry — no signup or token required to install or read the source.
+Initialize it with a public key from an active [Codeskop](https://www.codeskop.com)
+plan to start sending data; without one, it safely does nothing.
 
 ## Quick start
 
@@ -29,27 +26,21 @@ import { init } from "@codeskop/tracker";
 init({ apiKey: "cs_live_pk_…" });
 ```
 
-Get a public key from your Codeskop dashboard — no key required to install or read the
-code, required only for capture to actually reach your account.
+Get a public key from your [Codeskop](https://www.codeskop.com) dashboard — only
+needed for capture to reach your account, not to install or try the library.
 
-## Where things are
+## What it captures
 
-- **Build → release workflow (start here):** [`web-sdk-workflow.md`](./web-sdk-workflow.md)
-  — the single, phase-gated plan from `development` to a published public release.
-- **Publish & release automation:** [`publish-workflow.md`](./publish-workflow.md) —
-  the three GitHub Actions workflows (`ci.yml`, `publish-dev.yml`, `release.yml`), the
-  version-bump-then-tag release process, the `next`/`latest` dist-tag scheme, and the
-  rollback/yank procedure.
-- **Reference docs:** [`docs/`](./docs) — architecture, event model, security &
-  licensing, API reference, integration guide.
+- Uncaught errors and unhandled promise rejections
+- `fetch`/XHR failures, plus request latency
+- Presence heartbeats
+- Anything you want to report yourself, via `recordException()`
 
-## At a glance
+A [React adapter](https://www.npmjs.com/package/@codeskop/tracker-react) is available
+as a separate package, with a provider, an error boundary, and a hook.
 
-| | |
-|---|---|
-| Language / build | TypeScript · **tsup** (ESM + CJS + `.d.ts`) · tree-shakeable |
-| Package | `@codeskop/tracker` (core, zero deps) · `@codeskop/tracker-react` (adapter) |
-| Contract | `POST /v1/events` + `GET /v1/config` (shared with mobile + backend) |
-| Auth | Public ingest key `cs_*_pk_…`; never the secret; origin binding designed, not yet enforced server-side |
-| Distribution | Public npm (MIT), free install; runtime plan gate is the actual restriction |
-| Quality gates | 80% coverage · gzipped bundle-size budget · Playwright e2e |
+## Links
+
+- Website: [codeskop.com](https://www.codeskop.com)
+- GitHub: [github.com/Codeskop-io](https://github.com/Codeskop-io)
+- License: [MIT](./LICENSE)
