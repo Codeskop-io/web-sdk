@@ -2,10 +2,10 @@
   "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:80ad8946-bd0d-4fe9-8653-f406e80f0e8f",
+  "serialNumber": "urn:uuid:418efee9-7482-41d2-a42f-22ee0dcfdd09",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-07-16T11:00:57.592Z",
+    "timestamp": "2026-07-16T11:35:35.385Z",
     "lifecycles": [
       {
         "phase": "build"
@@ -19,20 +19,25 @@
       }
     ],
     "component": {
-      "bom-ref": "@codeskop/tracker@1.0.1",
+      "bom-ref": "@codeskop/tracker@1.0.2",
       "type": "library",
       "name": "webpack",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "scope": "required",
       "description": "Codeskop web SDK — browser error, network, and presence capture.",
-      "purl": "pkg:npm/%40codeskop/tracker@1.0.1",
+      "purl": "pkg:npm/%40codeskop/tracker@1.0.2",
       "properties": [
         {
           "name": "cdx:npm:package:path",
           "value": ""
         }
       ],
-      "externalReferences": [],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://www.codeskop.com"
+        }
+      ],
       "licenses": [
         {
           "license": {
@@ -15521,20 +15526,25 @@
       ]
     },
     {
-      "bom-ref": "@codeskop/tracker-react@1.0.1",
+      "bom-ref": "@codeskop/tracker-react@1.0.2",
       "type": "library",
       "name": "react",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "scope": "required",
       "description": "First-class React integration for @codeskop/tracker — a provider, an error boundary, and a hook.",
-      "purl": "pkg:npm/%40codeskop/tracker-react@1.0.1",
+      "purl": "pkg:npm/%40codeskop/tracker-react@1.0.2",
       "properties": [
         {
           "name": "cdx:npm:package:path",
           "value": "react"
         }
       ],
-      "externalReferences": [],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://www.codeskop.com"
+        }
+      ],
       "licenses": [
         {
           "license": {
@@ -15566,9 +15576,9 @@
   ],
   "dependencies": [
     {
-      "ref": "@codeskop/tracker@1.0.1",
+      "ref": "@codeskop/tracker@1.0.2",
       "dependsOn": [
-        "@codeskop/tracker-react@1.0.1",
+        "@codeskop/tracker-react@1.0.2",
         "codeskop-tracker-react-example@0.0.0",
         "@eslint/js@10.0.1",
         "@microsoft/api-extractor@7.58.9",
@@ -15667,9 +15677,9 @@
       ]
     },
     {
-      "ref": "@codeskop/tracker-react@1.0.1",
+      "ref": "@codeskop/tracker-react@1.0.2",
       "dependsOn": [
-        "@codeskop/tracker@1.0.1",
+        "@codeskop/tracker@1.0.2",
         "@microsoft/api-extractor@7.58.9",
         "@testing-library/jest-dom@6.9.1",
         "@testing-library/react@16.3.2",
@@ -16407,8 +16417,8 @@
     {
       "ref": "codeskop-tracker-react-example@0.0.0",
       "dependsOn": [
-        "@codeskop/tracker@1.0.1",
-        "@codeskop/tracker-react@1.0.1",
+        "@codeskop/tracker@1.0.2",
+        "@codeskop/tracker-react@1.0.2",
         "react@19.2.7",
         "react-dom@19.2.7",
         "@types/react@19.2.17",
