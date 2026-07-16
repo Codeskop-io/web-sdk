@@ -110,8 +110,10 @@ revised model puts both SDKs on the same footing:
 ## 4.7 Supply-chain integrity (Workflow Phase 13–14)
 
 - **SBOM** generated; dependency + license audit in CI.
-- **npm provenance**/signing on publish; `npm pack` audited so no secrets ship in the
-  tarball.
+- **npm pack audited** so no secrets ship in the tarball. **No npm provenance
+  attestation** — deliberately removed 2026-07-16: it requires the GitHub source repo
+  to be public, and `Codeskop-io/web-sdk` is private (see
+  `docs/10-publishing-setup.md` §10.6.2).
 - **CSP-friendly**: no `eval`, no dynamic code injection; optional **Subresource
   Integrity** hash for any licensed CDN build.
 

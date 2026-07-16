@@ -149,22 +149,29 @@ fails the release if `SDK_VERSION` wasn't bumped too.
   missed. (`react/package.json`'s version is checked too, but only produces a
   `::warning::`, not a failure — see the independent-versioning note in §3.1.)
 - Publishes `@codeskop/tracker` to the `latest` dist-tag:
-  `npm publish --tag latest --provenance --access public`.
+  `npm publish --tag latest --access public`.
 - Publishes `@codeskop/tracker-react` the same way, at **its own** current
   `react/package.json` version (`npm publish --workspace=@codeskop/tracker-react
-  --tag latest --provenance --access public`).
+  --tag latest --access public`).
 - Runs `gh release create "$GITHUB_REF_NAME" --generate-notes --title
   "$GITHUB_REF_NAME"` — same convention as `backend`'s and `landing`'s `release.yml`.
 
-`--provenance` and `--access public` here are actually redundant with both
-packages' committed `publishConfig` (`docs/10-publishing-setup.md` §10.1) — they're
-spelled out explicitly in the workflow anyway so the publish command is
-self-documenting without needing to cross-reference `package.json`.
+`--access public` here is actually redundant with both packages' committed
+`publishConfig` (`docs/10-publishing-setup.md` §10.1) — it's spelled out explicitly in
+the workflow anyway so the publish command is self-documenting without needing to
+cross-reference `package.json`.
 
 > **2026-07-15: distribution reversed from private/restricted to public** (D11) — see
 > `docs/04-security-and-licensing.md` §4.6. `--access public` replaces the original
 > `--access restricted` throughout this file and both workflow ymls; the packages are
 > MIT-licensed and installable without a token.
+>
+> **2026-07-16: `--provenance` removed** from both `npm publish` commands (and
+> `publishConfig.provenance` from both `package.json`s, and `id-token: write` from both
+> workflows' `permissions:`). A real publish attempt failed: npm provenance requires
+> the GitHub source repo to be public, and `Codeskop-io/web-sdk` is private. See
+> `docs/10-publishing-setup.md` §10.6.2 for the incident and §10.1 for how to restore
+> provenance if this repo is ever made public.
 
 ## 4. The `NPM_TOKEN` secret
 
@@ -191,11 +198,16 @@ correctly but their publish steps **fail on purpose** with an explicit
 `docs/10-publishing-setup.md` — not a silent skip. `ci.yml` never touches this secret
 and is unaffected.
 
-**Real incident (first live `publish-dev.yml` run):** failed with `npm error code
-EOTP` / "This operation requires a one-time password from your authenticator" —
-the account's 2FA mode was still "Authorization and Publishing" when the token was
-generated. Fixed by switching to "Authorization only"; no new token was needed. Full
-writeup: `docs/10-publishing-setup.md` §10.6.1.
+**Real incidents (first three live `publish-dev.yml` runs, none published yet):**
+1. Failed with `npm error code EOTP` — the account's 2FA mode was "Authorization and
+   Publishing". Switching to "Authorization only" and re-running the **same** token did
+   **not** clear it; a **freshly generated token** after the mode change did. Full
+   writeup: `docs/10-publishing-setup.md` §10.6.1.
+2. Next run got past auth and failed with `422 ... Unsupported GitHub Actions source
+   repository visibility: "private"` — npm provenance requires a public source repo.
+   Fixed by removing provenance entirely (`publishConfig.provenance`, `--provenance`,
+   `id-token: write`) rather than making the repo public. Full writeup:
+   `docs/10-publishing-setup.md` §10.6.2.
 
 ## 5. Rollback / yank procedure
 

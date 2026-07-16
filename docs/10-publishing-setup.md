@@ -21,9 +21,9 @@ zero surface drift, SBOM regenerated, `npm publish --dry-run` confirms `public a
 for both packages. What's left is entirely manual, on npmjs.com and GitHub — nothing
 past this point can be done by an agent:
 
-1. **Generate the Automation token** (§10.2(b)) from the `codeskop` org: Access
-   Tokens → new **Automation** token → scope it to `@codeskop/*` with publish
-   rights → copy it (shown once).
+1. **Generate a granular access token** (§10.2(b)) from the `codeskop` org: Access
+   Tokens → **Generate New Token** → **Granular Access Token** → Read and write →
+   scope it to `@codeskop`/`codeskop` → copy it (shown once).
 2. **Add it as a GitHub Actions secret** (§10.2(c)): `Codeskop-io/web-sdk` → Settings →
    Secrets and variables → Actions → New repository secret → name it exactly
    `NPM_TOKEN` → paste the token.
@@ -58,11 +58,6 @@ past this point can be done by an agent:
    matters: anyone can now install the package, but only an active plan makes it do
    anything.
 
-If `release.yml` fails specifically on the provenance step, check
-`.github/workflows/release.yml`'s top-level `permissions:` block still has
-`id-token: write` (§10.4) — it's already present as of this release, called out here
-in case a future workflow edit accidentally drops it.
-
 ## 10.1 Decision
 
 Per Phase 14 (revised 2026-07-15, D11): `@codeskop/tracker` and `@codeskop/tracker-react`
@@ -75,17 +70,22 @@ not in install access. Both package.json files carry:
 ```json
 "publishConfig": {
   "access": "public",
-  "registry": "https://registry.npmjs.org/",
-  "provenance": true
+  "registry": "https://registry.npmjs.org/"
 }
 ```
 
-`provenance: true` is a genuine, documented `publishConfig` key (not just a CLI flag) —
-npm builds and attaches a signed provenance attestation automatically on publish. It
-only works when the publish is run from a **supported cloud CI provider** (GitHub
-Actions or GitLab CI/CD) with OIDC — see §10.4. A local `npm publish` (even with real
-credentials) will not satisfy it; that's expected and by design — provenance is meant
-to prove the package came from CI, not from someone's laptop.
+> **No `provenance: true` here — deliberately removed 2026-07-16.** npm provenance
+> attestations require GitHub's OIDC build metadata to be recorded in the *public*
+> Sigstore transparency log, which npm can only verify when the **source repository
+> itself is public**. `Codeskop-io/web-sdk` is private (matching every other repo in
+> this workspace), so a real publish with `--provenance` fails
+> at the registry-verification step with `422 ... Unsupported GitHub Actions source
+> repository visibility: "private"`. See §10.6.2 for the incident and the two options
+> that were on the table (drop provenance vs. make the repo public) — dropping
+> provenance was chosen to keep the source private. If this repo is ever made public,
+> provenance can be turned back on (`publishConfig.provenance: true` + `--provenance`
+> in both workflows + `id-token: write` in their `permissions:` blocks — see git history
+> for the exact prior state).
 
 > **Note on the reversal:** the original Phase 14 plan published these packages to a
 > private, restricted scope behind per-customer install tokens. That was reversed
@@ -141,7 +141,7 @@ that actually determines whether CI can publish without a live OTP:
 1. In `Codeskop-io/web-sdk` on GitHub: **Settings → Secrets and variables → Actions →
    New repository secret**.
 2. Name it exactly **`NPM_TOKEN`**.
-3. Paste the Automation token from (b) as the value. Save.
+3. Paste the token from (b) as the value. Save.
 4. Confirm no other workflow or log ever echoes this value; rotate it (repeat (b)–(c))
    if it's ever exposed.
 
@@ -164,44 +164,44 @@ usual publish command per package:
     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 ```
 
-## 10.4 Provenance's extra CI requirement
+## 10.4 Provenance's extra CI requirement (historical — provenance is now off)
 
-Because both packages set `publishConfig.provenance: true`, the publish job also needs
-OIDC token permission so npm can mint the attestation:
-
-```yaml
-permissions:
-  id-token: write
-  contents: read
-```
-
-Without this permission block, a real (non-dry-run) `npm publish` from GitHub Actions
-will fail specifically on the provenance step even with a valid `NPM_TOKEN` — that
-failure mode is expected until this permission is added to the workflow.
+**Provenance was removed 2026-07-16 (see §10.1's note and §10.6.2) — neither workflow
+needs `id-token: write` anymore.** This section is kept as a pointer for whoever
+revisits this if the repo is ever made public and provenance is turned back on: it
+requires `publishConfig.provenance: true` in both `package.json`s, `--provenance` added
+back to both `npm publish` commands, and `id-token: write` added back to each
+workflow's top-level `permissions:` block (alongside whatever `contents:` level that
+workflow already needs) — the OIDC token minting only happens with that permission
+present, and a real (non-dry-run) `npm publish --provenance` fails without it.
 
 ## 10.5 Verifying it worked (for whoever does this)
 
 - `npm view @codeskop/tracker` resolves and shows the published version — no auth
   needed, it's a public package.
-- The npmjs.com package page shows a "Provenance" badge with a link to the GitHub
-  Actions run and source commit.
 - A throwaway project can `npm install @codeskop/tracker` with **no `.npmrc` entry at
   all** — the fastest real-world check that public distribution actually works.
 - Initializing that install against a real key confirms the runtime gate is what's
   actually doing the restricting: an inactive/unlicensed key should still yield a
   silent no-op (`docs/04` §4.6), even though the install itself succeeded.
+- There is **no "Provenance" badge** on the npmjs.com package page — that's expected,
+  not a sign something's wrong; provenance is deliberately off (§10.1, §10.6.2).
 
 ## 10.6 Status
 
-**Not done — the `codeskop` org exists, the actual `v1.0.0` publish doesn't yet.**
-§10.0 is the concrete remaining checklist; see the Phase 14 tracker entry in
+**Not done — the `codeskop` org exists, a real publish has been attempted three times
+and hasn't succeeded yet** (§10.6.1, §10.6.2). §10.0 is the concrete remaining
+checklist, now with provenance removed from both workflows and both `package.json`s —
+the next `publish-dev.yml` run (with a still-valid, non-EOTP'd `NPM_TOKEN`) should get
+past both prior failure points. See the Phase 14 tracker entry in
 [`../web-sdk-workflow.md`](../web-sdk-workflow.md) for the fuller history. Everything
 on the code side — the `@codeskop` rename, the `1.0.0` version bump (both
-`package.json`s + `src/core/version.ts`'s `SDK_VERSION`), public access + MIT license,
-`npm publish --dry-run`, `npm pack` tarball audit, regenerated API reports/SBOM, and
-the runtime plan-gate re-verification — is done and doesn't require npmjs.com access.
+`package.json`s + `src/core/version.ts`'s `SDK_VERSION`), public access + MIT license
+without provenance, `npm publish --dry-run`, `npm pack` tarball audit, regenerated API
+reports/SBOM, and the runtime plan-gate re-verification — is done and doesn't require
+npmjs.com access.
 
-### 10.6.1 Real incident: first `publish-dev.yml` run failed with `EOTP`
+### 10.6.1 Real incident: first two `publish-dev.yml` runs failed with `EOTP`
 
 The first live CI publish attempt (merge to `development`, triggering `publish-dev.yml`'s
 `next`-tag prerelease) got all the way through building the tarball, signing provenance,
@@ -212,11 +212,42 @@ npm error code EOTP
 npm error This operation requires a one-time password from your authenticator.
 ```
 
-Root cause: the `NPM_TOKEN` secret was a **granular access token**, and the npm account
-it belongs to still had two-factor authentication set to **"Authorization and
-Publishing"** — which requires a live OTP for every publish, token or not. No CI runner
-can supply one. Fixed by changing the account's 2FA mode to **"Authorization only"**
-(§10.2(b) step 1) — no new token needed, the same granular token started working
-immediately. If this error resurfaces after the fix, check whether the 2FA setting got
-reset (e.g. by an npm support action, or a different admin re-enabling it), not the
-token itself.
+First attempted fix: switched the npm account's 2FA mode from "Authorization and
+Publishing" to "Authorization only" (§10.2(b) step 1), then re-ran the same failed job
+against the **same** existing `NPM_TOKEN`. **This did not clear the error** — the
+re-run failed with the identical `EOTP` error. So the account-level 2FA mode alone was
+not sufficient (or didn't take effect for that specific already-issued token — not
+fully confirmed which). What actually cleared it: generating a **brand-new granular
+access token** after the 2FA mode change, and replacing the `NPM_TOKEN` secret with it.
+That run got past authentication cleanly and failed on a different, later error
+instead (§10.6.2) — confirming `EOTP` was resolved. **Takeaway: if `EOTP` persists
+after changing the account's 2FA mode, don't just re-run the same job — generate a
+fresh token and update the secret before retrying.**
+
+### 10.6.2 Real incident: `EOTP` fixed, next run failed with `422` on provenance
+
+With a fresh token, the next `publish-dev.yml` run authenticated fine, built the
+tarball, and even successfully **signed** the provenance attestation — then failed at
+the registry's verification step:
+
+```
+npm error code E422
+npm error 422 Unprocessable Entity - PUT https://registry.npmjs.org/@codeskop%2ftracker
+npm error Error verifying sigstore provenance bundle: Unsupported GitHub Actions source
+npm error repository visibility: "private". Only public source repositories are
+npm error supported when publishing with provenance.
+```
+
+Root cause: npm provenance requires the GitHub Actions OIDC attestation to be recorded
+in the **public** Sigstore transparency log, which npm can only verify against a
+**public** source repository. `Codeskop-io/web-sdk` is private (by design — every repo
+in this workspace is), so provenance can never succeed here regardless of tokens, 2FA,
+or permissions — this was a structural incompatibility, not a misconfiguration.
+
+Two options existed: make the repo public (keeps provenance, reverses this workspace's
+private-repos convention for the SDK's actual source), or drop provenance (keeps the
+repo private, loses the "Provenance" badge/attestation). **Decision: drop provenance**
+— removed `publishConfig.provenance` from both `package.json`s, `--provenance` from
+both `npm publish` commands in `publish-dev.yml`/`release.yml`, and the now-unneeded
+`id-token: write` permission from both workflows. Nothing else about the publish
+changed. See §10.1's note for how to turn it back on if this repo is ever made public.
