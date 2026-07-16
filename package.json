@@ -1,6 +1,6 @@
 {
   "name": "@codeskop/tracker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Codeskop web SDK — browser error, network, and presence capture.",
   "type": "module",
   "sideEffects": false,
