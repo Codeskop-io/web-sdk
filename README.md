@@ -53,7 +53,3 @@ code, required only for capture to actually reach your account.
 | Auth | Public ingest key `cs_*_pk_…`; never the secret; origin binding designed, not yet enforced server-side |
 | Distribution | Public npm (MIT), free install; runtime plan gate is the actual restriction |
 | Quality gates | 80% coverage · gzipped bundle-size budget · Playwright e2e |
-
-> **Note on the folder name:** `webpack` is only the directory name — the library is
-> built with **tsup** (esbuild), not webpack, because a distributable SDK needs lean,
-> tree-shakeable, multi-format output. See the workflow Phase 0.
