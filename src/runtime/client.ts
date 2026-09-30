@@ -80,6 +80,9 @@ export interface CodeskopClientOptions {
   heartbeatCapture?: StartStoppable;
 }
 
+/** Event types the remote `features.network` flag gates. */
+const NETWORK_EVENT_TYPES: ReadonlySet<string> = new Set(['api_timing', 'api_error']);
+
 export class CodeskopClient {
   private readonly onDiagnostic: DiagnosticHandler;
   private readonly state = new ClientStateMachine();
@@ -171,6 +174,9 @@ export class CodeskopClient {
   readonly emitEvent = safely(
     (input: EmitEventInput): void => {
       if (!this.localEnabled || !this.state.isEnabled() || this.featureGate.isKillSwitched()) return;
+      // Plan gate: the remote config turns network capture off on plans that
+      // don't include it (`features.network: false`), whatever `captureNetwork` says.
+      if (NETWORK_EVENT_TYPES.has(input.type) && !this.featureGate.isFeatureEnabled('network')) return;
 
       const event: CodeskopEvent = {
         event_id: generateEventId(systemClock),

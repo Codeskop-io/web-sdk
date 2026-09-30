@@ -139,6 +139,41 @@ describe('CodeskopClient — emitEvent', () => {
     expect(beaconTransport.calls).toBe(0);
   });
 
+  it('drops network events when the plan turns network capture off, but keeps others', async () => {
+    const queue = fakeQueue();
+    client = new CodeskopClient(config, {
+      installId: 'inst_test',
+      queue,
+      fetchTransport: fakeTransport(),
+      beaconTransport: fakeTransport(),
+      configSource: fakeConfigSource({ ...DEFAULT_REMOTE_CONFIG, features: { network: false, anr: false } }),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    client.emitEvent({ type: 'api_timing', severity: 'low', payload: { method: 'GET', host: 'api.example.com', path: '/x', duration_ms: 12 } });
+    client.emitEvent({ type: 'api_error', severity: 'high', payload: { method: 'GET', host: 'api.example.com', path: '/x', duration_ms: 12, error_kind: 'http_500' } });
+    client.emitEvent({ type: 'heartbeat', severity: 'low', payload: { session_id: 's1', visible: true } });
+
+    await vi.waitFor(() => expect(queue.events).toHaveLength(1));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(queue.events.map((event) => event.type)).toEqual(['heartbeat']);
+  });
+
+  it('keeps network events when the plan includes network capture', async () => {
+    const queue = fakeQueue();
+    client = new CodeskopClient(config, {
+      installId: 'inst_test',
+      queue,
+      fetchTransport: fakeTransport(),
+      beaconTransport: fakeTransport(),
+      configSource: fakeConfigSource({ ...DEFAULT_REMOTE_CONFIG, features: { network: true } }),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    client.emitEvent({ type: 'api_timing', severity: 'low', payload: { method: 'GET', host: 'api.example.com', path: '/x', duration_ms: 12 } });
+    await vi.waitFor(() => expect(queue.events).toHaveLength(1));
+  });
+
   it('never throws even when the queue rejects', async () => {
     const queue: QueueLike = {
       enqueue: () => Promise.reject(new Error('boom')),
