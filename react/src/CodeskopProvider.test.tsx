@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
-import { useState, type ReactElement } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 import type { CodeskopConfig } from '@codeskop/tracker';
 import { init } from '@codeskop/tracker';
 import { CodeskopProvider } from './CodeskopProvider.js';
@@ -56,5 +56,24 @@ describe('CodeskopProvider', () => {
 
     screen.getByRole('button').click();
     expect(init).toHaveBeenCalledTimes(1);
+  });
+
+  it("has started the SDK before a child's first-mount effect runs", () => {
+    const order: string[] = [];
+    vi.mocked(init).mockImplementation(() => {
+      order.push('init');
+    });
+    function Child(): null {
+      useEffect(() => {
+        order.push('child effect');
+      }, []);
+      return null;
+    }
+    render(
+      <CodeskopProvider config={{ apiKey: 'cs_test_pk_provider' }}>
+        <Child />
+      </CodeskopProvider>,
+    );
+    expect(order).toEqual(['init', 'child effect']);
   });
 });

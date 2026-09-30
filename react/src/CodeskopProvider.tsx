@@ -1,16 +1,12 @@
 /**
  * `CodeskopProvider` (`docs/05-api-reference.md` §5.5, `web-sdk-workflow.md`
- * Phase 12): wires `init(config)` on mount and makes the facade functions
- * reachable via `useCodeskop()`.
+ * Phase 12): calls `init(config)` on its first render in the browser and makes
+ * the facade functions reachable via `useCodeskop()`.
  *
- * **SSR-safe by construction, not by an explicit `typeof window` check here:**
- * `init()` is only ever called from inside `useEffect`, and React never runs
- * effects while rendering on the server (`renderToString`/`renderToPipeableStream`
- * execute only the render phase) — so this component touches no browser
- * global during a server render. The core's own guards
- * (`core/scriptConfig.ts`'s `typeof document === 'undefined'` check, every
- * facade entrypoint's `safely()` wrapper) are the second line of defense if
- * it were ever imported in a context that did evaluate eagerly.
+ * **SSR-safe:** `init()` only runs when `window` exists, so a server render
+ * (`renderToString`/`renderToPipeableStream`, Next.js Server and Client
+ * Component pre-rendering) starts nothing. The package ships a `'use client'`
+ * directive, so Next.js App Router Server Components can render it directly.
  *
  * `config` is read once, at mount — matching `init()`'s own contract
  * (`docs/05` §5.1/§5.4): a fresh `CodeskopClient` is cheap to construct and
@@ -21,7 +17,7 @@
  * yourself (re-exported from `@codeskop/tracker`) if a runtime config swap is
  * ever needed.
  */
-import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
+import { useRef, type ReactElement, type ReactNode } from 'react';
 import { init, type CodeskopConfig } from '@codeskop/tracker';
 import { CodeskopContext, defaultCodeskopContextValue } from './context.js';
 
@@ -32,15 +28,17 @@ export interface CodeskopProviderProps {
 }
 
 export function CodeskopProvider({ config, children }: CodeskopProviderProps): ReactElement {
-  // Captures whatever `config` was on the first render; effect deps are
-  // deliberately empty (see the header comment) so a re-render with a new
-  // object identity — the common case for an inline `config={{ ... }}` — never
-  // re-triggers `init()`.
-  const configRef = useRef(config);
-
-  useEffect(() => {
-    init(configRef.current);
-  }, []);
+  // Start the SDK during the provider's first render in the browser, not in an
+  // effect: React runs children's effects before their parent's, so an
+  // effect-based init let a child's first-mount `identify()` run against no
+  // client and be dropped. `config` is read once (see the header comment), so a
+  // re-render with a new inline object never re-runs `init()`. On the server
+  // there is no `window`, and nothing starts.
+  const started = useRef(false);
+  if (!started.current && typeof window !== 'undefined') {
+    started.current = true;
+    init(config);
+  }
 
   return <CodeskopContext.Provider value={defaultCodeskopContextValue}>{children}</CodeskopContext.Provider>;
 }

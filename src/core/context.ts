@@ -116,6 +116,9 @@ export function collectContext(config: CodeskopConfig, installId: string): Colle
     page: collectPage(),
     referrer: collectReferrer(),
     release: config.release,
+    // Mirrors `release` under the name the mobile SDKs use, so the dashboard's
+    // app-version columns and release health work for web apps too.
+    ...(config.release ? { version_name: config.release } : {}),
     sdk_version: SDK_VERSION,
   };
 

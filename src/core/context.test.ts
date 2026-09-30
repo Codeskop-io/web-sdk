@@ -29,6 +29,7 @@ describe('collectContext', () => {
   it('threads config.release through to app.release', () => {
     const { app } = collectContext({ ...baseConfig, release: '3.4.1' }, 'inst_abc');
     expect(app.release).toBe('3.4.1');
+    expect(app['version_name']).toBe('3.4.1');
   });
 
   it('reduces the page URL to a path only (query dropped)', () => {
