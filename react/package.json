@@ -1,6 +1,6 @@
 {
   "name": "@codeskop/tracker-react",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "First-class React integration for @codeskop/tracker — a provider, an error boundary, and a hook.",
   "homepage": "https://www.codeskop.com",
   "type": "module",

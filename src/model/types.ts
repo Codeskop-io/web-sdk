@@ -147,6 +147,8 @@ export interface QueueLike {
   ack(eventIds: string[]): Promise<void>;
   /** Current queue depth, in number of events. */
   size(): Promise<number>;
+  /** Changes the byte cap (remote `max_queue_mb`). Optional for custom queues. */
+  setMaxQueueMb?(maxQueueMb: number): void;
 }
 
 /** Outcome of a single delivery attempt against `POST /v1/events`. */

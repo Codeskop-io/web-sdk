@@ -77,6 +77,19 @@ describe('DurableQueue — byte cap enforcement', () => {
     expect(remaining).toContain('new-2');
   });
 
+  it('applies a smaller cap set later with setMaxQueueMb on the next enqueue', async () => {
+    const queue = new DurableQueue({ store: new MemoryStore(), maxQueueMb: 1, criticalReserveRatio: 0 });
+    await queue.enqueue(paddedHeartbeat('a', 300));
+    await queue.enqueue(paddedHeartbeat('b', 300));
+    await queue.enqueue(paddedHeartbeat('c', 300));
+
+    queue.setMaxQueueMb(700 / (1024 * 1024));
+    await queue.enqueue(paddedHeartbeat('d', 300));
+
+    const remaining = (await queue.peekBatch(10)).map((e) => e.event_id);
+    expect(remaining).toEqual(['c', 'd']);
+  });
+
   it('drops a non-critical event outright if it can never fit its own budget', async () => {
     const capBytes = 500;
     const queue = new DurableQueue({

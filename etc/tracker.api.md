@@ -150,6 +150,7 @@ export interface QueueLike {
     ack(eventIds: string[]): Promise<void>;
     enqueue(event: CodeskopEvent): Promise<void>;
     peekBatch(maxEvents: number): Promise<CodeskopEvent[]>;
+    setMaxQueueMb?(maxQueueMb: number): void;
     size(): Promise<number>;
 }
 

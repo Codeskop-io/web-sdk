@@ -174,6 +174,58 @@ describe('CodeskopClient — emitEvent', () => {
     await vi.waitFor(() => expect(queue.events).toHaveLength(1));
   });
 
+  it('applies the remote sample rate to request timings but always keeps errors', async () => {
+    const queue = fakeQueue();
+    client = new CodeskopClient(config, {
+      installId: 'inst_test',
+      queue,
+      fetchTransport: fakeTransport(),
+      beaconTransport: fakeTransport(),
+      configSource: fakeConfigSource({ ...DEFAULT_REMOTE_CONFIG, sample_rates: { api_timing: 0, api_error: 0 } }),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    client.emitEvent({ type: 'api_timing', severity: 'low', payload: { method: 'GET', host: 'api.example.com', path: '/x', duration_ms: 12 } });
+    client.emitEvent({ type: 'api_error', severity: 'high', payload: { ...{ method: 'GET', host: 'api.example.com', path: '/x', duration_ms: 12 }, error_kind: 'http_500' } });
+
+    await vi.waitFor(() => expect(queue.events).toHaveLength(1));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(queue.events.map((event) => event.type)).toEqual(['api_error']);
+  });
+
+  it('uses the in-code sampleRates until the remote config arrives', async () => {
+    const queue = fakeQueue();
+    client = new CodeskopClient(
+      { ...config, sampleRates: { api_timing: 0 } },
+      {
+        installId: 'inst_test',
+        queue,
+        fetchTransport: fakeTransport(),
+        beaconTransport: fakeTransport(),
+        configSource: { fetchConfig: () => new Promise<RemoteConfig>(() => {}) },
+      },
+    );
+
+    client.emitEvent({ type: 'api_timing', severity: 'low', payload: { method: 'GET', host: 'api.example.com', path: '/x', duration_ms: 12 } });
+    client.emitEvent({ type: 'heartbeat', severity: 'low', payload: { session_id: 's1', visible: true } });
+
+    await vi.waitFor(() => expect(queue.events).toHaveLength(1));
+    expect(queue.events.map((event) => event.type)).toEqual(['heartbeat']);
+  });
+
+  it("resizes the queue to the remote config's max_queue_mb", async () => {
+    const queue = Object.assign(fakeQueue(), { setMaxQueueMb: vi.fn() });
+    client = new CodeskopClient(config, {
+      installId: 'inst_test',
+      queue,
+      fetchTransport: fakeTransport(),
+      beaconTransport: fakeTransport(),
+      configSource: fakeConfigSource({ ...DEFAULT_REMOTE_CONFIG, max_queue_mb: 2 }),
+    });
+
+    await vi.waitFor(() => expect(queue.setMaxQueueMb).toHaveBeenCalledWith(2));
+  });
+
   it('never throws even when the queue rejects', async () => {
     const queue: QueueLike = {
       enqueue: () => Promise.reject(new Error('boom')),

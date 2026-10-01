@@ -21,6 +21,7 @@ import type {
   UserRef,
 } from '../model/types.js';
 import { safely, type DiagnosticHandler } from '../core/safely.js';
+import { Sampler } from '../core/sampling.js';
 import { ClientStateMachine } from '../core/state.js';
 import { generateEventId, systemClock } from '../core/id.js';
 import { IdentityManager } from '../core/identity.js';
@@ -87,6 +88,10 @@ export class CodeskopClient {
   private readonly onDiagnostic: DiagnosticHandler;
   private readonly state = new ClientStateMachine();
   private readonly featureGate = new FeatureGate();
+  /** The in-code `sampleRates`, used until the first remote config arrives. */
+  private readonly localSampleRates: Record<string, number>;
+  private remoteConfigLoaded = false;
+  private readonly random: () => number = Math.random;
   private readonly identity: IdentityManager;
   private readonly queue: QueueLike;
   private readonly fetchTransport: Transport;
@@ -112,6 +117,7 @@ export class CodeskopClient {
 
   constructor(config: CodeskopConfig, options: CodeskopClientOptions = {}) {
     this.onDiagnostic = options.onDiagnostic ?? (() => {});
+    this.localSampleRates = config.sampleRates ?? {};
 
     const installId = options.installId ?? resolveInstallId();
     this.identity = new IdentityManager(() => installId);
@@ -177,6 +183,9 @@ export class CodeskopClient {
       // Plan gate: the remote config turns network capture off on plans that
       // don't include it (`features.network: false`), whatever `captureNetwork` says.
       if (NETWORK_EVENT_TYPES.has(input.type) && !this.featureGate.isFeatureEnabled('network')) return;
+      // Sampling: the remote config's `sample_rates` replace the in-code
+      // `sampleRates` once fetched. Errors and exceptions are always kept.
+      if (!this.shouldSample(input.type)) return;
 
       const event: CodeskopEvent = {
         event_id: generateEventId(systemClock),
@@ -269,11 +278,20 @@ export class CodeskopClient {
     }
   }
 
+  private shouldSample(type: EventType): boolean {
+    const rate = this.remoteConfigLoaded
+      ? this.featureGate.sampleRate(type, 1)
+      : (this.localSampleRates[type] ?? 1);
+    return new Sampler({ sampleRates: { [type]: rate }, random: this.random }).shouldSample(type);
+  }
+
   private refreshRemoteConfig(): void {
     void safely(
       async () => {
         const remoteConfig = await this.configSource.fetchConfig();
         this.featureGate.update(remoteConfig);
+        this.remoteConfigLoaded = true;
+        this.queue.setMaxQueueMb?.(this.featureGate.maxQueueMb());
         if (this.featureGate.isKillSwitched()) {
           this.state.tryTransition('disabled');
         }
