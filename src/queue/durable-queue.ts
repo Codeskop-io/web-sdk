@@ -47,8 +47,9 @@ export interface DurableQueueOptions {
 export class DurableQueue implements QueueLike {
   private store: QueueStore;
   private readonly onError: DiagnosticHandler;
-  private readonly maxBytes: number;
-  private readonly nonCriticalCapBytes: number;
+  private maxBytes = 0;
+  private nonCriticalCapBytes = 0;
+  private readonly reserveRatio: number;
 
   private readonly records = new Map<string, QueueRecord>();
   private nextSeq = 0;
@@ -60,10 +61,19 @@ export class DurableQueue implements QueueLike {
     this.store = options.store ?? createQueueStore({ dbName: options.dbName, storeName: options.storeName });
     this.onError = options.onError ?? (() => {});
 
-    const maxQueueMb = options.maxQueueMb ?? DEFAULT_MAX_QUEUE_MB;
+    this.reserveRatio = clampReserveRatio(options.criticalReserveRatio ?? DEFAULT_CRITICAL_RESERVE_RATIO);
+    this.setMaxQueueMb(options.maxQueueMb ?? DEFAULT_MAX_QUEUE_MB);
+  }
+
+  /**
+   * Changes the byte cap — the remote config's `max_queue_mb` replaces the
+   * in-code `maxQueueMb` once fetched. A smaller cap applies to the next
+   * enqueue (which evicts as usual); nothing already queued is dropped here.
+   */
+  setMaxQueueMb(maxQueueMb: number): void {
+    if (!Number.isFinite(maxQueueMb)) return;
     this.maxBytes = Math.max(0, maxQueueMb) * BYTES_PER_MB;
-    const ratio = clampReserveRatio(options.criticalReserveRatio ?? DEFAULT_CRITICAL_RESERVE_RATIO);
-    const reservedCriticalBytes = Math.floor(this.maxBytes * ratio);
+    const reservedCriticalBytes = Math.floor(this.maxBytes * this.reserveRatio);
     this.nonCriticalCapBytes = Math.max(0, this.maxBytes - reservedCriticalBytes);
   }
 

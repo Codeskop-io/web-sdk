@@ -40,10 +40,12 @@ ALLOWED_EVENT_TYPES = frozenset(
 )
 
 # A static, contract-shaped config payload. The real backend derives this from
-# the key's plan (Phase 6); here it is a fixed "everything on" response.
+# the key's plan (Phase 6); here it is a fixed "everything on" response. Timings
+# are kept at 100%: the SDK applies `sample_rates` (1.2+), and the e2e suites
+# assert on every request's timing.
 STATIC_CONFIG = {
     "enabled": True,
-    "sample_rates": {"api_timing": 0.2},
+    "sample_rates": {"api_timing": 1.0},
     "features": {"anr": True, "network": True},
     "max_queue_mb": 10,
 }
