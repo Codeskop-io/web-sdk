@@ -15,6 +15,7 @@ import type {
   ConfigSource,
   EventPayload,
   EventType,
+  Properties,
   QueueLike,
   Severity,
   Transport,
@@ -32,6 +33,8 @@ import { BeaconTransport, buildBatches, FetchTransport, type BuildBatchesContext
 import { FeatureGate, RemoteConfigClient } from '../config/index.js';
 import { ErrorCapture } from '../capture/errors.js';
 import { HeartbeatCapture } from '../capture/heartbeat.js';
+import { PageViewCapture } from '../capture/pageviews.js';
+import { SessionManager } from '../core/session.js';
 import { NetworkCapture } from '../capture/network.js';
 import { SyncScheduler } from './syncScheduler.js';
 
@@ -79,6 +82,35 @@ export interface CodeskopClientOptions {
   errorCapture?: StartStoppable;
   /** Overrides the real `HeartbeatCapture` this client would otherwise construct. */
   heartbeatCapture?: StartStoppable;
+  /** Overrides the real `PageViewCapture` (`CodeskopConfig.capturePageViews` permitting). */
+  pageViewCapture?: StartStoppable;
+  /** Overrides the session manager (tests). */
+  sessions?: SessionManager;
+}
+
+/** Keeps scalars and lists of scalars; drops nested objects, functions and non-finite numbers. */
+export function cleanProperties(raw: Record<string, unknown> | undefined): Properties {
+  const out: Properties = {};
+  if (!raw || typeof raw !== 'object') return out;
+  const scalar = (v: unknown): string | number | boolean | null | undefined => {
+    if (v === null || typeof v === 'string' || typeof v === 'boolean') return v;
+    if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
+    if (v instanceof Date) return v.toISOString();
+    return undefined;
+  };
+  for (const [key, value] of Object.entries(raw).slice(0, 100)) {
+    if (!key) continue;
+    if (Array.isArray(value)) {
+      out[key] = value
+        .slice(0, 50)
+        .map(scalar)
+        .filter((v): v is string | number | boolean => v !== undefined && v !== null);
+    } else {
+      const v = scalar(value);
+      if (v !== undefined) out[key] = v;
+    }
+  }
+  return out;
 }
 
 /** Event types the remote `features.network` flag gates. */
@@ -88,6 +120,8 @@ export class CodeskopClient {
   private readonly onDiagnostic: DiagnosticHandler;
   private readonly state = new ClientStateMachine();
   private readonly featureGate = new FeatureGate();
+  private readonly sessions: SessionManager;
+  private readonly pageViewCapture: StartStoppable | undefined;
   /** The in-code `sampleRates`, used until the first remote config arrives. */
   private readonly localSampleRates: Record<string, number>;
   private remoteConfigLoaded = false;
@@ -165,7 +199,13 @@ export class CodeskopClient {
         : options.networkCapture ??
           new NetworkCapture({ endpoint, redactHeaderNames: config.redactHeaders, emit: this.emitEvent });
     this.errorCapture = config.captureErrors === false ? undefined : options.errorCapture ?? new ErrorCapture();
-    this.heartbeatCapture = options.heartbeatCapture ?? new HeartbeatCapture({ emit: this.emitEvent });
+    this.sessions = options.sessions ?? new SessionManager();
+    this.heartbeatCapture =
+      options.heartbeatCapture ?? new HeartbeatCapture({ emit: this.emitEvent, sessionId: () => this.sessions.current() });
+    this.pageViewCapture =
+      config.capturePageViews === false
+        ? undefined
+        : options.pageViewCapture ?? new PageViewCapture({ emit: (path) => this.screen(path) });
 
     // Freshly constructed: `uninitialized -> enabled` is always legal.
     this.state.tryTransition('enabled');
@@ -173,6 +213,7 @@ export class CodeskopClient {
     this.networkCapture?.start();
     this.errorCapture?.start();
     this.heartbeatCapture.start();
+    this.pageViewCapture?.start();
     this.refreshRemoteConfig();
   }
 
@@ -210,6 +251,7 @@ export class CodeskopClient {
     this.networkCapture?.stop();
     this.errorCapture?.stop();
     this.heartbeatCapture.stop();
+    this.pageViewCapture?.stop();
   }, { context: 'client.dispose' });
 
   /** Diagnostics-only: the current durable-queue depth. Not part of the public API (`docs/05`). */
@@ -235,9 +277,42 @@ export class CodeskopClient {
     this.localEnabled = enabled;
   }
 
-  /** `docs/05` §5.3's `identify`: delegates to the `IdentityManager` this client already owns. */
+  /**
+   * `identify`: attributes later events to `userId`. With product analytics on,
+   * traits are also sent (an `identify` event) so they appear on the user's
+   * profile and can be used in segments. Use your own id — never emails or
+   * phone numbers (Codeskop masks values that look like them).
+   */
   identify(userId: string, traits?: Record<string, unknown>): void {
     this.identity.identify(userId, traits);
+    const cleaned = cleanProperties(traits);
+    if (Object.keys(cleaned).length && this.analyticsEnabled()) {
+      this.emitEvent({ type: 'identify', severity: 'low', payload: { traits: cleaned } });
+    }
+  }
+
+  /** Product analytics: a custom event with optional properties, e.g. `track('order_completed', { value: 49.99 })`. */
+  track(name: string, properties?: Record<string, unknown>): void {
+    this.emitAnalytics('track', name, properties);
+  }
+
+  /** Product analytics: a screen or page view. Page views are captured automatically unless `capturePageViews: false`. */
+  screen(name: string, properties?: Record<string, unknown>): void {
+    this.emitAnalytics('screen', name, properties);
+  }
+
+  private analyticsEnabled(): boolean {
+    // On unless the plan's remote config turns it off (Free and Starter).
+    return this.featureGate.isFeatureEnabled('analytics');
+  }
+
+  private emitAnalytics(type: 'track' | 'screen', name: string, properties?: Record<string, unknown>): void {
+    if (typeof name !== 'string' || !name.trim() || !this.analyticsEnabled()) return;
+    this.emitEvent({
+      type,
+      severity: 'low',
+      payload: { name: name.trim().slice(0, 128), properties: cleanProperties(properties), session_id: this.sessions.current() },
+    });
   }
 
   /** `docs/05` §5.3's `reset`: delegates to the `IdentityManager` this client already owns. */

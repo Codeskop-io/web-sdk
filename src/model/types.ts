@@ -8,8 +8,14 @@
  * config, runtime) build against (`docs/02-architecture.md` §2.6).
  */
 
-/** The four event types the web SDK emits (`docs/03` §3.1). */
-export type EventType = 'api_error' | 'api_timing' | 'exception' | 'heartbeat';
+/** The event types the web SDK emits (`docs/03` §3.1), plus product analytics (`track`, `screen`, `identify`). */
+export type EventType = 'api_error' | 'api_timing' | 'exception' | 'heartbeat' | 'track' | 'screen' | 'identify';
+
+/** A property or trait value: text, a number, true/false, null, or a list of those. */
+export type PropertyValue = string | number | boolean | null | Array<string | number | boolean>;
+
+/** Custom event properties or user traits. Nested objects are dropped. */
+export type Properties = Record<string, PropertyValue>;
 
 /** The shared severity scale (`backend/apps/ingest/schemas.py` `Severity`). */
 export type Severity = 'low' | 'medium' | 'high' | 'critical';
@@ -98,8 +104,26 @@ export interface HeartbeatPayload {
   visible: boolean;
 }
 
-/** Discriminated union of the four wire payload shapes, keyed by `CodeskopEvent.type`. */
-export type EventPayload = ApiErrorPayload | ApiTimingPayload | ExceptionPayload | HeartbeatPayload;
+/** Payload for a custom event (`track`) or a screen/page view (`screen`). */
+export interface AnalyticsPayload {
+  name: string;
+  properties: Properties;
+  session_id: string;
+}
+
+/** Payload for `identify` traits. */
+export interface IdentifyPayload {
+  traits: Properties;
+}
+
+/** Discriminated union of the wire payload shapes, keyed by `CodeskopEvent.type`. */
+export type EventPayload =
+  | ApiErrorPayload
+  | ApiTimingPayload
+  | ExceptionPayload
+  | HeartbeatPayload
+  | AnalyticsPayload
+  | IdentifyPayload;
 
 /** A single event as placed on the wire inside a `BatchEnvelope.batch` (`docs/03` §3.2). */
 export interface CodeskopEvent {
@@ -198,6 +222,8 @@ export interface CodeskopConfig {
   captureNetwork?: boolean;
   /** Install `error` + `unhandledrejection` handlers. Defaults to `true`. */
   captureErrors?: boolean;
+  /** Send a `screen` event for each page and in-app navigation (product analytics). Defaults to `true`. */
+  capturePageViews?: boolean;
   /** Always-redacted header names. Defaults to `["authorization","cookie"]`. */
   redactHeaders?: string[];
   /** Client-seeded sample rates; remote config wins. Defaults to `{}`. */

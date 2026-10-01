@@ -3,7 +3,8 @@ import type { CodeskopConfig, CodeskopEvent, ConfigSource, QueueLike, RemoteConf
 import { DEFAULT_REMOTE_CONFIG } from '../config/index.js';
 import { BATCH_SIZE_TRIGGER, CodeskopClient, getActiveClient, setActiveClient } from './client.js';
 
-const config: CodeskopConfig = { apiKey: 'cs_test_pk_client', endpoint: 'https://ingest.example.com' };
+// Page views off by default here: they'd add a `screen` event to every queue; tested on their own below.
+const config: CodeskopConfig = { apiKey: 'cs_test_pk_client', endpoint: 'https://ingest.example.com', capturePageViews: false };
 
 function heartbeatEvent(id: string): CodeskopEvent {
   return {
@@ -247,6 +248,59 @@ describe('CodeskopClient — emitEvent', () => {
   });
 });
 
+describe('CodeskopClient — product analytics', () => {
+  function analyticsClient(remote: RemoteConfig = DEFAULT_REMOTE_CONFIG, extra: Partial<CodeskopConfig> = {}) {
+    const queue = fakeQueue();
+    client = new CodeskopClient({ ...config, capturePageViews: false, ...extra }, {
+      installId: 'inst_test',
+      queue,
+      fetchTransport: fakeTransport(),
+      beaconTransport: fakeTransport(),
+      configSource: fakeConfigSource(remote),
+    });
+    return queue;
+  }
+
+  it('track and screen carry cleaned properties and the session id', async () => {
+    const queue = analyticsClient();
+    client!.track('order_completed', { value: 49.99, currency: 'KES', nested: { a: 1 }, tags: ['a', { b: 1 }], bad: NaN });
+    client!.screen('Checkout');
+    await vi.waitFor(() => expect(queue.events).toHaveLength(2));
+    const [track, screen] = queue.events;
+    expect(track?.type).toBe('track');
+    expect(track?.payload).toMatchObject({ name: 'order_completed', properties: { value: 49.99, currency: 'KES', tags: ['a'] } });
+    expect((track?.payload as { session_id: string }).session_id).toMatch(/^sess_/);
+    expect((screen?.payload as { session_id: string }).session_id).toBe((track?.payload as { session_id: string }).session_id);
+  });
+
+  it('identify sends traits as an identify event for the identified user', async () => {
+    const queue = analyticsClient();
+    client!.identify('u_42', { plan: 'pro' });
+    await vi.waitFor(() => expect(queue.events).toHaveLength(1));
+    expect(queue.events[0]).toMatchObject({ type: 'identify', user: { id: 'u_42' }, payload: { traits: { plan: 'pro' } } });
+  });
+
+  it('sends nothing when the plan turns analytics off', async () => {
+    const queue = analyticsClient({ ...DEFAULT_REMOTE_CONFIG, features: { analytics: false } });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    client!.track('x');
+    client!.screen('Home');
+    client!.identify('u_1', { plan: 'pro' });
+    client!.emitEvent({ type: 'heartbeat', severity: 'low', payload: { session_id: 's', visible: true } });
+    await vi.waitFor(() => expect(queue.events).toHaveLength(1));
+    expect(queue.events[0]?.type).toBe('heartbeat');
+  });
+
+  it('captures page views unless turned off', async () => {
+    const queue = fakeQueue();
+    client = new CodeskopClient({ ...config, capturePageViews: true }, {
+      installId: 'inst_test', queue, fetchTransport: fakeTransport(), beaconTransport: fakeTransport(),
+      configSource: fakeConfigSource(),
+    });
+    await vi.waitFor(() => expect(queue.events.some((e) => e.type === 'screen')).toBe(true));
+  });
+});
+
 describe('CodeskopClient — setEnabled (local pause/resume)', () => {
   it('is a no-op independent of, and does not touch, the remote kill-switch state', async () => {
     const queue = fakeQueue();
@@ -301,7 +355,7 @@ describe('CodeskopClient — identify / reset', () => {
       configSource: fakeConfigSource(),
     });
 
-    client.identify('user_42', { plan: 'pro' });
+    client.identify('user_42'); // traits would add an identify event (tested under product analytics)
     client.emitEvent({ type: 'heartbeat', severity: 'low', payload: { session_id: 's1', visible: true } });
     await vi.waitFor(() => expect(queue.events).toHaveLength(1));
     expect(queue.events[0]?.user).toEqual({ id: 'user_42', is_anonymous: false });

@@ -14,7 +14,9 @@ import { ReactElement } from 'react';
 import { ReactNode } from 'react';
 import { recordException } from '@codeskop/tracker';
 import { reset } from '@codeskop/tracker';
+import { screen as screen_2 } from '@codeskop/tracker';
 import { setEnabled } from '@codeskop/tracker';
+import { track } from '@codeskop/tracker';
 
 // @public (undocumented)
 export const CodeskopContext: react.Context<CodeskopContextValue>;
@@ -25,7 +27,9 @@ export interface CodeskopContextValue {
     identify: typeof identify;
     recordException: typeof recordException;
     reset: typeof reset;
+    screen: typeof screen_2;
     setEnabled: typeof setEnabled;
+    track: typeof track;
 }
 
 // Warning: (ae-forgotten-export) The symbol "CodeskopErrorBoundaryState" needs to be exported by the entry point index.d.ts

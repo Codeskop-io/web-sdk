@@ -5,7 +5,7 @@
  * §5.4) — see `facade.ts` for `init`/`identify`/`reset`/`setEnabled`/`flush`
  * and `capture/errors.ts` for `recordException`.
  */
-export { init, identify, reset, setEnabled, flush } from './facade.js';
+export { init, identify, reset, setEnabled, flush, track, screen } from './facade.js';
 export { recordException } from './capture/errors.js';
 
 export type {
@@ -20,6 +20,10 @@ export type {
   StackFrame,
   ExceptionPayload,
   HeartbeatPayload,
+  AnalyticsPayload,
+  IdentifyPayload,
+  Properties,
+  PropertyValue,
   EventPayload,
   CodeskopEvent,
   BatchEnvelope,
