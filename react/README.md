@@ -31,8 +31,9 @@ createRoot(el).render(
 ```
 
 Inside the tree, `useCodeskop()` gives you `recordException`, `identify`,
-`reset`, `setEnabled`, and `flush` — safe no-ops even without a
-`CodeskopProvider` above it.
+`reset`, `setEnabled`, `flush`, and the product analytics calls `track` and
+`screen` — safe no-ops even without a `CodeskopProvider` above it. The package
+ships a `"use client"` directive, so it works in Next.js App Router layouts.
 
 ```tsx
 import { useCodeskop } from "@codeskop/tracker-react";

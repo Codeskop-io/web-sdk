@@ -6,7 +6,7 @@
  * server. Not part of the published package — this file only exists under
  * `e2e/`.
  */
-import { flush, identify, init, recordException, reset, setEnabled } from '../../src/index.js';
+import { flush, identify, init, recordException, reset, screen, setEnabled, track } from '../../src/index.js';
 import { getActiveClient } from '../../src/runtime/client.js';
 import type { CodeskopConfig, Severity } from '../../src/model/types.js';
 
@@ -22,12 +22,15 @@ export interface CodeskopTestHarness {
   recordException: (error: unknown, attributes?: Record<string, unknown>) => void;
   setEnabled: (enabled: boolean) => void;
   flush: () => Promise<boolean>;
+  track: (name: string, properties?: Record<string, unknown>) => void;
+  screen: (name: string, properties?: Record<string, unknown>) => void;
   /** Fires a genuine resource-load failure (a broken `<img>`) whose `target.tagName` getter has been overridden to throw — the Phase 10 stability pass's "test double" fault, injected into a real `ErrorCapture` hook rather than simulated. */
   triggerFaultyResourceError: () => void;
 }
 
 const harness: CodeskopTestHarness = {
-  init,
+  // Page views are off unless a suite asks for them: they'd add a `screen` event to every queue.
+  init: (config) => init({ capturePageViews: false, ...config }),
   emit: (severity) => {
     getActiveClient()?.emitEvent({
       type: 'heartbeat',
@@ -44,6 +47,8 @@ const harness: CodeskopTestHarness = {
   recordException,
   setEnabled,
   flush,
+  track,
+  screen,
   triggerFaultyResourceError: () => {
     const img = document.createElement('img');
     // Shadows the inherited `Element.prototype.tagName` getter on this one

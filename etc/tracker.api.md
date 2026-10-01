@@ -4,6 +4,16 @@
 
 ```ts
 
+// @public
+export interface AnalyticsPayload {
+    // (undocumented)
+    name: string;
+    // (undocumented)
+    properties: Properties;
+    // (undocumented)
+    session_id: string;
+}
+
 // Warning: (ae-forgotten-export) The symbol "NetworkEventPayloadBase" needs to be exported by the entry point index.d.ts
 //
 // @public
@@ -49,6 +59,7 @@ export interface CodeskopConfig {
     apiKey: string;
     captureErrors?: boolean;
     captureNetwork?: boolean;
+    capturePageViews?: boolean;
     endpoint?: string;
     environment?: string;
     maxQueueMb?: number;
@@ -96,10 +107,10 @@ export interface DeviceContext {
 }
 
 // @public
-export type EventPayload = ApiErrorPayload | ApiTimingPayload | ExceptionPayload | HeartbeatPayload;
+export type EventPayload = ApiErrorPayload | ApiTimingPayload | ExceptionPayload | HeartbeatPayload | AnalyticsPayload | IdentifyPayload;
 
 // @public
-export type EventType = 'api_error' | 'api_timing' | 'exception' | 'heartbeat';
+export type EventType = 'api_error' | 'api_timing' | 'exception' | 'heartbeat' | 'track' | 'screen' | 'identify';
 
 // @public
 export interface ExceptionPayload {
@@ -129,6 +140,12 @@ export interface HeartbeatPayload {
 export const identify: (userId: string, traits?: Record<string, unknown> | undefined) => void | undefined;
 
 // @public
+export interface IdentifyPayload {
+    // (undocumented)
+    traits: Properties;
+}
+
+// @public
 export const init: (config: CodeskopConfig) => void | undefined;
 
 // @public
@@ -144,6 +161,12 @@ export interface NetworkTiming {
     // (undocumented)
     ttfb?: number;
 }
+
+// @public
+export type Properties = Record<string, PropertyValue>;
+
+// @public
+export type PropertyValue = string | number | boolean | null | Array<string | number | boolean>;
 
 // @public
 export interface QueueLike {
@@ -169,8 +192,12 @@ export interface RemoteConfig {
     sample_rates: Record<string, number>;
 }
 
-// @public
+// @public (undocumented)
 export const reset: () => void | undefined;
+
+// @public
+const screen_2: (name: string, properties?: Record<string, unknown> | undefined) => void | undefined;
+export { screen_2 as screen }
 
 // @public
 export const setEnabled: (enabled: boolean) => void | undefined;
@@ -191,6 +218,9 @@ export interface StackFrame {
     // (undocumented)
     method?: string;
 }
+
+// @public
+export const track: (name: string, properties?: Record<string, unknown> | undefined) => void | undefined;
 
 // @public
 export interface Transport {

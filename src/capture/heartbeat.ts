@@ -37,8 +37,8 @@ export interface HeartbeatCaptureOptions {
   doc?: DocumentLike;
   /** Injectable emit seam for tests; defaults to `getActiveClient()?.emitEvent`. */
   emit?: (input: EmitEventInput) => void;
-  /** Injectable per-session id for tests; defaults to a freshly generated one. */
-  sessionId?: string;
+  /** The session id, or a function returning the current one (shared with analytics events). Defaults to a fresh id per page load. */
+  sessionId?: string | (() => string);
   /** Narrowed to exactly the shape this module calls — see the note above `defaultSetInterval` in `runtime/syncScheduler.ts`. */
   setIntervalImpl?: (callback: () => void, intervalMs: number) => IntervalHandle;
   clearIntervalImpl?: (handle: IntervalHandle) => void;
@@ -100,7 +100,7 @@ export class HeartbeatCapture {
   private readonly intervalMs: number;
   private readonly doc: DocumentLike | undefined;
   private readonly emit: (input: EmitEventInput) => void;
-  private readonly sessionId: string;
+  private readonly sessionId: () => string;
   private readonly setIntervalImpl: (callback: () => void, intervalMs: number) => IntervalHandle;
   private readonly clearIntervalImpl: (handle: IntervalHandle) => void;
 
@@ -119,7 +119,8 @@ export class HeartbeatCapture {
     this.intervalMs = options.intervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS;
     this.doc = options.doc ?? resolveDefaultDocument();
     this.emit = options.emit ?? defaultEmit;
-    this.sessionId = options.sessionId ?? generateSessionId();
+    const sessionId = options.sessionId ?? generateSessionId();
+    this.sessionId = typeof sessionId === 'function' ? sessionId : () => sessionId;
     this.setIntervalImpl = options.setIntervalImpl ?? defaultSetInterval;
     this.clearIntervalImpl = options.clearIntervalImpl ?? defaultClearInterval;
   }
@@ -167,7 +168,7 @@ export class HeartbeatCapture {
   /** Builds and emits one heartbeat. Guarded again at the call site (not just `isVisible`'s callers) so a stray fired timer can never emit while hidden. */
   private emitHeartbeat(): void {
     if (!this.isVisible()) return;
-    const payload: EventPayload = { session_id: this.sessionId, visible: true };
+    const payload: EventPayload = { session_id: this.sessionId(), visible: true };
     this.emit({ type: 'heartbeat', severity: 'low', payload });
   }
 }

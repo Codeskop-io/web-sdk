@@ -36,6 +36,20 @@ needed for capture to reach your account, not to install or try the library.
 - Presence heartbeats
 - Anything you want to report yourself, via `recordException()`
 
+## Product analytics
+
+On Growth and Scale plans, page views are captured automatically and you can
+track your own events and user traits:
+
+```ts
+import { identify, track } from "@codeskop/tracker";
+
+identify(user.id, { plan: "pro" });   // your own id; never emails or phone numbers
+track("order_completed", { value: 49.99, currency: "KES" });
+```
+
+Codeskop builds funnels, retention, paths and segments from them.
+
 A [React adapter](https://www.npmjs.com/package/@codeskop/tracker-react) is available
 as a separate package, with a provider, an error boundary, and a hook.
 

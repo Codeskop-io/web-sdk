@@ -36,6 +36,9 @@ ALLOWED_EVENT_TYPES = frozenset(
         "crash_native",
         "anr",
         "heartbeat",
+        "track",
+        "screen",
+        "identify",
     }
 )
 

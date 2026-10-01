@@ -8,7 +8,7 @@
  * (`useCodeskop.test.tsx`).
  */
 import { createContext } from 'react';
-import { flush, identify, recordException, reset, setEnabled } from '@codeskop/tracker';
+import { flush, identify, recordException, reset, screen, setEnabled, track } from '@codeskop/tracker';
 
 export interface CodeskopContextValue {
   /** `docs/05` §5.3 — report a handled error the app caught itself. */
@@ -21,6 +21,10 @@ export interface CodeskopContextValue {
   setEnabled: typeof setEnabled;
   /** `docs/05` §5.3 — best-effort expedited drain of the queue. */
   flush: typeof flush;
+  /** Product analytics — a custom event with properties. */
+  track: typeof track;
+  /** Product analytics — a screen or page view (pages are captured automatically). */
+  screen: typeof screen;
 }
 
 /**
@@ -36,6 +40,8 @@ export const defaultCodeskopContextValue: CodeskopContextValue = {
   reset,
   setEnabled,
   flush,
+  track,
+  screen,
 };
 
 export const CodeskopContext = createContext<CodeskopContextValue>(defaultCodeskopContextValue);

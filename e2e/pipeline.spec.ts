@@ -266,3 +266,24 @@ test('a fault injected into one capture hook drops only that event; the page and
 
   await expect.poll(async () => (await receivedEvents()).filter((e) => e.user?.id === 'user-fault').length).toBe(1);
 });
+
+test('product analytics: a page view, identify traits and a custom event arrive in one session', async ({ page }) => {
+  await page.goto(app.url);
+  await page.evaluate((endpoint) => {
+    window.__codeskop_test__.init({ apiKey: 'cs_test_pk_e2e_analytics', endpoint, capturePageViews: true });
+    window.__codeskop_test__.identify('user-analytics', { plan: 'pro' });
+    window.__codeskop_test__.track('order_completed', { value: 49.99, currency: 'KES' });
+  }, app.url);
+
+  await expect.poll(() => page.evaluate(() => window.__codeskop_test__.queueSize())).toBe(3);
+  await page.evaluate(() => window.__codeskop_test__.flush());
+  await expect.poll(async () => (await receivedEvents()).length).toBe(3);
+
+  const events = await receivedEvents();
+  const byType = Object.fromEntries(events.map((e) => [e.type, e]));
+  expect(Object.keys(byType).sort()).toEqual(['identify', 'screen', 'track']);
+  expect(byType.identify?.payload).toEqual({ traits: { plan: 'pro' } });
+  expect(byType.track?.user).toEqual({ id: 'user-analytics', is_anonymous: false });
+  expect(byType.track?.payload?.properties).toEqual({ value: 49.99, currency: 'KES' });
+  expect(byType.screen?.payload?.session_id).toBe(byType.track?.payload?.session_id);
+});

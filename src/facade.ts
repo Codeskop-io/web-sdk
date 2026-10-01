@@ -77,6 +77,16 @@ export const identify = safely((userId: string, traits?: Record<string, unknown>
  * Clears the current user (`docs/05` §5.3), e.g. on logout. The install ID
  * persists. A safe no-op before `init()`.
  */
+/** Product analytics: a custom event, e.g. `track('order_completed', { value: 49.99, currency: 'KES' })`. */
+export const track = safely((name: string, properties?: Record<string, unknown>): void => {
+  getActiveClient()?.track(name, properties);
+}, { context: 'track' });
+
+/** Product analytics: a screen or page view. Pages are captured automatically on the web. */
+export const screen = safely((name: string, properties?: Record<string, unknown>): void => {
+  getActiveClient()?.screen(name, properties);
+}, { context: 'screen' });
+
 export const reset = safely((): void => {
   getActiveClient()?.reset();
 }, { context: 'reset' });
