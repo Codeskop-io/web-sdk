@@ -29,6 +29,30 @@ init({ apiKey: "cs_live_pk_…" });
 Get a public key from your [Codeskop](https://www.codeskop.com) dashboard — only
 needed for capture to reach your account, not to install or try the library.
 
+## Without a bundler (script tag)
+
+For server-rendered sites (Django, Rails, Laravel, ASP.NET), WordPress, Webflow, Shopify or plain HTML, add one tag to `<head>`. No build step and no JavaScript to write:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/@codeskop/tracker@1/dist/codeskop.min.js"
+        data-codeskop-key="cs_live_pk_…"></script>
+```
+
+Optional attributes: `data-codeskop-user-id` (the signed-in user's ID, rendered by your server), `data-codeskop-release`, `data-codeskop-environment`, `data-codeskop-endpoint`, and `data-codeskop-network` / `-errors` / `-page-views` set to `"false"` to turn a capture off. The API is on `window.Codeskop` (`identify`, `track`, `screen`, `recordException`, `reset`, `setEnabled`, `flush`).
+
+To load it `async` and still call the API from inline scripts before it arrives, define the stub first; queued calls are replayed on load:
+
+```html
+<script>
+  window.Codeskop = window.Codeskop || { q: [] };
+  ['identify', 'track', 'screen', 'recordException'].forEach(function (m) {
+    Codeskop[m] = Codeskop[m] || function () { Codeskop.q.push([m, [].slice.call(arguments)]); };
+  });
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/@codeskop/tracker@1/dist/codeskop.min.js"
+        data-codeskop-key="cs_live_pk_…"></script>
+```
+
 ## What it captures
 
 - Uncaught errors and unhandled promise rejections
