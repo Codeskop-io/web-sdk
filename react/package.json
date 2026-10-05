@@ -1,8 +1,30 @@
 {
   "name": "@codeskop/tracker-react",
-  "version": "1.4.0",
-  "description": "First-class React integration for @codeskop/tracker — a provider, an error boundary, and a hook.",
-  "homepage": "https://www.codeskop.com",
+  "version": "1.4.1",
+  "description": "React error tracking and analytics for Codeskop: provider, error boundary and hook. Works with Next.js App Router, Vite and CRA. Free plan.",
+  "homepage": "https://www.codeskop.com/docs/web/installation?utm_source=npm&utm_medium=homepage&utm_campaign=tracker-react",
+  "bugs": {
+    "url": "https://www.codeskop.com/contact",
+    "email": "plinqdevelopers@gmail.com"
+  },
+  "keywords": [
+    "react",
+    "nextjs",
+    "error-boundary",
+    "error-tracking",
+    "error-monitoring",
+    "crash-reporting",
+    "react-error-boundary",
+    "apm",
+    "performance-monitoring",
+    "product-analytics",
+    "analytics",
+    "real-user-monitoring",
+    "sentry-alternative",
+    "typescript",
+    "codeskop"
+  ],
+  "author": "Codeskop (https://www.codeskop.com)",
   "type": "module",
   "sideEffects": false,
   "license": "MIT",
@@ -46,7 +68,10 @@
       "path": "dist/index.js",
       "limit": "2.5 KB",
       "gzip": true,
-      "ignore": ["react", "@codeskop/tracker"]
+      "ignore": [
+        "react",
+        "@codeskop/tracker"
+      ]
     }
   ],
   "dependencies": {
