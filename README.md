@@ -1,84 +1,107 @@
-# Codeskop Web SDK (`@codeskop/tracker`)
+<p align="center">
+  <a href="https://www.codeskop.com/?utm_source=npm&utm_medium=readme&utm_campaign=tracker">
+    <img src="https://www.codeskop.com/media/product-tour-poster.jpg" alt="Codeskop dashboard: crash-free users, active users, open issues and API latency" width="720">
+  </a>
+</p>
+
+# @codeskop/tracker
+
+**See the JavaScript errors and failing API calls your users hit, before they report them.**
 
 [![npm version](https://img.shields.io/npm/v/@codeskop/tracker.svg)](https://www.npmjs.com/package/@codeskop/tracker)
-[![license](https://img.shields.io/npm/l/@codeskop/tracker.svg)](./LICENSE)
 [![bundle size](https://img.shields.io/bundlephobia/minzip/@codeskop/tracker)](https://bundlephobia.com/package/@codeskop/tracker)
+[![license](https://img.shields.io/npm/l/@codeskop/tracker.svg)](./LICENSE)
 
-A tiny, tree-shakeable TypeScript library that captures uncaught errors, unhandled
-promise rejections, `fetch`/XHR failures and latency, and presence heartbeats from a
-browser app, and sends them to [Codeskop](https://www.codeskop.com). Zero runtime
-dependencies.
+`@codeskop/tracker` is the browser SDK for [Codeskop](https://www.codeskop.com/?utm_source=npm&utm_medium=readme&utm_campaign=tracker). Add it to any web app and Codeskop groups every error into an issue with its stack trace, the browser and the release it started in, then shows which API calls fail or slow down.
 
-**Free and open to install.** `@codeskop/tracker` is MIT-licensed and published to the
-public npm registry — no signup or token required to install or read the source.
-Initialize it with a public key from an active [Codeskop](https://www.codeskop.com)
-plan to start sending data; without one, it safely does nothing.
+- **Errors:** uncaught errors and unhandled promise rejections, grouped into issues.
+- **API monitoring:** failing and slow `fetch`/XHR calls, per endpoint.
+- **Product analytics:** page views, custom events, funnels and retention.
+- **Small and safe:** about 12 KB gzipped, zero dependencies. Every call is a no-op if anything goes wrong, so it can never break your app.
 
-## Quick start
+Works with React, Next.js, Vue, Svelte, Angular, plain JavaScript, or a single [`<script>` tag](#no-bundler-one-script-tag) on any site.
+
+## Get started in 2 minutes
+
+**1. Create a free account** at **[dashboard.codeskop.com/signup](https://dashboard.codeskop.com/signup?utm_source=npm&utm_medium=readme&utm_campaign=tracker)**. No credit card. You get a project and its public key (`cs_live_pk_…`) straight away.
+
+**2. Install:**
 
 ```bash
 npm install @codeskop/tracker
 ```
 
+**3. Initialize once, as early as possible:**
+
 ```ts
 import { init } from "@codeskop/tracker";
 
-init({ apiKey: "cs_live_pk_…" });
+init({
+  apiKey: "cs_live_pk_…",   // your project's public key
+  release: "1.0.0",         // optional: your app's version
+});
 ```
 
-Get a public key from your [Codeskop](https://www.codeskop.com) dashboard — only
-needed for capture to reach your account, not to install or try the library.
+Throw an error in your app and it shows up in your dashboard within seconds.
 
-## Without a bundler (script tag)
+> Using React? Use [`@codeskop/tracker-react`](https://www.npmjs.com/package/@codeskop/tracker-react) for a provider, error boundary and hook.
 
-For server-rendered sites (Django, Rails, Laravel, ASP.NET), WordPress, Webflow, Shopify or plain HTML, add one tag to `<head>`. No build step and no JavaScript to write:
+## No bundler? One script tag
+
+For server-rendered sites (Django, Rails, Laravel, ASP.NET), WordPress, Webflow, Shopify or plain HTML, paste this into `<head>`. No build step:
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/@codeskop/tracker@1/dist/codeskop.min.js"
-        data-codeskop-key="cs_live_pk_…"></script>
+        data-codeskop-key="cs_live_pk_…"
+        data-codeskop-user-id="<signed-in user's id, optional>"></script>
 ```
 
-Optional attributes: `data-codeskop-user-id` (the signed-in user's ID, rendered by your server), `data-codeskop-release`, `data-codeskop-environment`, `data-codeskop-endpoint`, and `data-codeskop-network` / `-errors` / `-page-views` set to `"false"` to turn a capture off. The API is on `window.Codeskop` (`identify`, `track`, `screen`, `recordException`, `reset`, `setEnabled`, `flush`).
+The API is on `window.Codeskop`. See the [script tag guide](https://www.codeskop.com/docs/web/script-tag?utm_source=npm&utm_medium=readme&utm_campaign=tracker) for every attribute, async loading and CSP.
 
-To load it `async` and still call the API from inline scripts before it arrives, define the stub first; queued calls are replayed on load:
-
-```html
-<script>
-  window.Codeskop = window.Codeskop || { q: [] };
-  ['identify', 'track', 'screen', 'recordException'].forEach(function (m) {
-    Codeskop[m] = Codeskop[m] || function () { Codeskop.q.push([m, [].slice.call(arguments)]); };
-  });
-</script>
-<script async src="https://cdn.jsdelivr.net/npm/@codeskop/tracker@1/dist/codeskop.min.js"
-        data-codeskop-key="cs_live_pk_…"></script>
-```
-
-## What it captures
-
-- Uncaught errors and unhandled promise rejections
-- `fetch`/XHR failures, plus request latency
-- Presence heartbeats
-- Anything you want to report yourself, via `recordException()`
-
-## Product analytics
-
-On Growth and Scale plans, page views are captured automatically and you can
-track your own events and user traits:
+## Common tasks
 
 ```ts
-import { identify, track } from "@codeskop/tracker";
+import { identify, reset, recordException, track } from "@codeskop/tracker";
 
-identify(user.id, { plan: "pro" });   // your own id; never emails or phone numbers
-track("order_completed", { value: 49.99, currency: "KES" });
+identify(user.id);                 // after login: your own ID, never an email
+reset();                           // on logout
+
+try {
+  await checkout(cart);
+} catch (error) {
+  recordException(error);          // report a handled error
+}
+
+track("order_completed", { value: 49.99, currency: "KES" });  // product analytics
 ```
 
-Codeskop builds funnels, retention, paths and segments from them.
+## Plans
 
-A [React adapter](https://www.npmjs.com/package/@codeskop/tracker-react) is available
-as a separate package, with a provider, an error boundary, and a hook.
+| | Free | Starter | Growth |
+|---|---|---|---|
+| Errors and crashes | ✓ | ✓ | ✓ |
+| API monitoring (fetch/XHR) | | ✓ | ✓ |
+| Alerts | | ✓ | ✓ |
+| Product and user analytics | | | ✓ |
+| Events per month | 10,000 | 100,000 | 1,000,000 |
 
-## Links
+The SDK is the same on every plan; your plan decides what's kept. See [pricing](https://www.codeskop.com/pricing?utm_source=npm&utm_medium=readme&utm_campaign=tracker).
 
-- Website: [codeskop.com](https://www.codeskop.com)
-- GitHub: [github.com/Codeskop-io](https://github.com/Codeskop-io)
-- License: [MIT](./LICENSE)
+## Privacy
+
+No third-party cookies and no fingerprinting: an anonymous install ID lives in `localStorage` (a first-party cookie only if storage is unavailable). Request and response bodies, `Authorization` and `Cookie` headers and query strings are never sent, and error messages are redacted by default. You choose the user ID. Details: [Privacy & Security](https://www.codeskop.com/docs/privacy?utm_source=npm&utm_medium=readme&utm_campaign=tracker).
+
+## Documentation
+
+- [Installation & setup](https://www.codeskop.com/docs/web/installation?utm_source=npm&utm_medium=readme&utm_campaign=tracker)
+- [React](https://www.codeskop.com/docs/web/react?utm_source=npm&utm_medium=readme&utm_campaign=tracker) and [script tag](https://www.codeskop.com/docs/web/script-tag?utm_source=npm&utm_medium=readme&utm_campaign=tracker)
+- [All configuration options](https://www.codeskop.com/docs/web/configuration?utm_source=npm&utm_medium=readme&utm_campaign=tracker)
+- [Troubleshooting](https://www.codeskop.com/docs/troubleshooting?utm_source=npm&utm_medium=readme&utm_campaign=tracker)
+
+Also monitoring a backend or mobile app? Codeskop has SDKs for [Android, iOS, Flutter](https://www.codeskop.com/docs?utm_source=npm&utm_medium=readme&utm_campaign=tracker), and [Python, Node.js, Java, Go and PHP](https://www.codeskop.com/docs/server?utm_source=npm&utm_medium=readme&utm_campaign=tracker), all in the same dashboard.
+
+## Help
+
+Questions or a bug? [Contact us](https://www.codeskop.com/contact?utm_source=npm&utm_medium=readme&utm_campaign=tracker) or email plinqdevelopers@gmail.com.
+
+MIT licensed.

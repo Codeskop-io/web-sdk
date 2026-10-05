@@ -45,10 +45,28 @@ export const init = safely((config: CodeskopConfig): void => {
   if (!validation.valid) {
     // Fail-soft: no active client means every future capture-module call
     // into `getActiveClient()` is a safe no-op (`docs/05` §5.4).
+    warnInvalidKey(validation.reason);
     return;
   }
   setActiveClient(new CodeskopClient(config));
 }, { context: 'init' });
+
+const SIGNUP_URL = 'https://dashboard.codeskop.com/signup?utm_source=sdk&utm_medium=console&utm_campaign=tracker';
+let warnedInvalidKey = false;
+
+/**
+ * The one message the SDK ever logs: a missing, placeholder or secret key
+ * would otherwise make it silently do nothing, which looks like a bug.
+ */
+function warnInvalidKey(reason: string | undefined): void {
+  if (warnedInvalidKey || typeof console === 'undefined') return;
+  warnedInvalidKey = true;
+  const message =
+    reason === 'secret_key'
+      ? '[Codeskop] That is a secret key (cs_*_sk_…); use the project\'s public key (cs_live_pk_…) from API tokens. Nothing will be captured.'
+      : `[Codeskop] No valid public key, so nothing will be captured. Get a free key in 2 minutes: ${SIGNUP_URL}`;
+  console.warn(message);
+}
 
 /**
  * Runs once, at module evaluation time: attempts auto-init from the SDK's
