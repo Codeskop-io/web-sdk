@@ -18,7 +18,7 @@
 import type { CodeskopConfig } from './model/types.js';
 import { safely } from './core/safely.js';
 import { validateApiKey } from './core/identity.js';
-import { readScriptConfig } from './core/scriptConfig.js';
+import { readScriptConfig, readScriptUserId } from './core/scriptConfig.js';
 import { CodeskopClient, getActiveClient, setActiveClient } from './runtime/client.js';
 
 /**
@@ -60,6 +60,8 @@ const autoInit = safely((): void => {
   const scriptConfig = readScriptConfig();
   if (!scriptConfig?.apiKey) return;
   init(scriptConfig as CodeskopConfig);
+  const userId = readScriptUserId();
+  if (userId) getActiveClient()?.identify(userId);
 }, { context: 'auto-init' });
 
 autoInit();

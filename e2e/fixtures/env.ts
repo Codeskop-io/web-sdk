@@ -108,7 +108,7 @@ export async function resetMockReceivedBatches(mockUrl: string): Promise<void> {
   await fetch(`${mockUrl}/__debug/reset`, { method: 'POST' });
 }
 
-function proxyToMock(req: http.IncomingMessage, res: http.ServerResponse, mockUrl: string): void {
+export function proxyToMock(req: http.IncomingMessage, res: http.ServerResponse, mockUrl: string): void {
   const target = new URL(req.url ?? '/', mockUrl);
   const upstream = http.request(
     {
