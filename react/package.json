@@ -1,11 +1,11 @@
 {
   "name": "@codeskop/tracker-react",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "React error tracking and analytics for Codeskop: provider, error boundary and hook. Works with Next.js App Router, Vite and CRA. Free plan.",
   "homepage": "https://www.codeskop.com/docs/web/installation?utm_source=npm&utm_medium=homepage&utm_campaign=tracker-react",
   "bugs": {
     "url": "https://www.codeskop.com/contact",
-    "email": "plinqdevelopers@gmail.com"
+    "email": "support@codeskop.com"
   },
   "keywords": [
     "react",

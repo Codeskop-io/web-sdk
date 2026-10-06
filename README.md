@@ -102,6 +102,6 @@ Also monitoring a backend or mobile app? Codeskop has SDKs for [Android, iOS, Fl
 
 ## Help
 
-Questions or a bug? [Contact us](https://www.codeskop.com/contact?utm_source=npm&utm_medium=readme&utm_campaign=tracker) or email plinqdevelopers@gmail.com.
+Questions or a bug? [Contact us](https://www.codeskop.com/contact?utm_source=npm&utm_medium=readme&utm_campaign=tracker) or email support@codeskop.com.
 
 MIT licensed.

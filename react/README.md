@@ -90,4 +90,4 @@ Errors are on every plan, including Free (10,000 events a month). API monitoring
 - [Configuration options](https://www.codeskop.com/docs/web/configuration?utm_source=npm&utm_medium=readme&utm_campaign=tracker-react)
 - [Troubleshooting](https://www.codeskop.com/docs/troubleshooting?utm_source=npm&utm_medium=readme&utm_campaign=tracker-react)
 
-Questions? [Contact us](https://www.codeskop.com/contact?utm_source=npm&utm_medium=readme&utm_campaign=tracker-react) or email plinqdevelopers@gmail.com. MIT licensed.
+Questions? [Contact us](https://www.codeskop.com/contact?utm_source=npm&utm_medium=readme&utm_campaign=tracker-react) or email support@codeskop.com. MIT licensed.
