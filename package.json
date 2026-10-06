@@ -1,11 +1,11 @@
 {
   "name": "@codeskop/tracker",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Error tracking, API monitoring and product analytics for web apps. Free plan, 2-minute setup, ~12 KB, zero dependencies. Works with any framework or a single script tag.",
   "homepage": "https://www.codeskop.com/docs/web/installation?utm_source=npm&utm_medium=homepage&utm_campaign=tracker",
   "bugs": {
     "url": "https://www.codeskop.com/contact",
-    "email": "plinqdevelopers@gmail.com"
+    "email": "support@codeskop.com"
   },
   "keywords": [
     "error-tracking",
