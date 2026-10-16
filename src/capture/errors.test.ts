@@ -276,6 +276,20 @@ describe('capture/errors', () => {
       expect(payload.exception_class).toBe('Error');
     });
 
+    it('carries the attributes, cleaned like track properties', () => {
+      recordException(new Error('caught it'), { userAction: 'checkout', step: 3, nested: { dropped: true } });
+
+      const payload = exceptionPayloadOf(emitEvent.mock.calls[0] ?? []);
+      expect(payload.attributes).toEqual({ userAction: 'checkout', step: 3 });
+    });
+
+    it('leaves attributes off when none are given', () => {
+      recordException(new Error('caught it'));
+
+      const payload = exceptionPayloadOf(emitEvent.mock.calls[0] ?? []);
+      expect(payload).not.toHaveProperty('attributes');
+    });
+
     it('is a safe no-op before init (no active client)', () => {
       getActiveClient.mockImplementation(() => undefined);
       expect(() => recordException(new Error('caught it'))).not.toThrow();

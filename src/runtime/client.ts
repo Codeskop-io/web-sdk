@@ -15,7 +15,6 @@ import type {
   ConfigSource,
   EventPayload,
   EventType,
-  Properties,
   QueueLike,
   Severity,
   Transport,
@@ -26,7 +25,7 @@ import { Sampler } from '../core/sampling.js';
 import { ClientStateMachine } from '../core/state.js';
 import { generateEventId, systemClock } from '../core/id.js';
 import { IdentityManager } from '../core/identity.js';
-import { collectContext } from '../core/context.js';
+import { collectContext, collectPage } from '../core/context.js';
 import { resolveInstallId } from '../core/installId.js';
 import { DurableQueue } from '../queue/index.js';
 import { BeaconTransport, buildBatches, FetchTransport, type BuildBatchesContext } from '../transport/index.js';
@@ -88,33 +87,19 @@ export interface CodeskopClientOptions {
   sessions?: SessionManager;
 }
 
-/** Keeps scalars and lists of scalars; drops nested objects, functions and non-finite numbers. */
-export function cleanProperties(raw: Record<string, unknown> | undefined): Properties {
-  const out: Properties = {};
-  if (!raw || typeof raw !== 'object') return out;
-  const scalar = (v: unknown): string | number | boolean | null | undefined => {
-    if (v === null || typeof v === 'string' || typeof v === 'boolean') return v;
-    if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
-    if (v instanceof Date) return v.toISOString();
-    return undefined;
-  };
-  for (const [key, value] of Object.entries(raw).slice(0, 100)) {
-    if (!key) continue;
-    if (Array.isArray(value)) {
-      out[key] = value
-        .slice(0, 50)
-        .map(scalar)
-        .filter((v): v is string | number | boolean => v !== undefined && v !== null);
-    } else {
-      const v = scalar(value);
-      if (v !== undefined) out[key] = v;
-    }
-  }
-  return out;
-}
+// Moved to `core/properties.ts` so capture modules can use it without the client; re-exported for compatibility.
+export { cleanProperties } from '../core/properties.js';
+import { cleanProperties } from '../core/properties.js';
 
 /** Event types the remote `features.network` flag gates. */
 const NETWORK_EVENT_TYPES: ReadonlySet<string> = new Set(['api_timing', 'api_error']);
+
+/** Stamps the current page onto a payload that doesn't already carry one. */
+function withPage(payload: EventPayload): EventPayload {
+  if ('page' in payload && payload.page) return payload;
+  const page = collectPage();
+  return page ? { ...payload, page } : payload;
+}
 
 export class CodeskopClient {
   private readonly onDiagnostic: DiagnosticHandler;
@@ -234,7 +219,8 @@ export class CodeskopClient {
         occurred_at: new Date(systemClock.now()).toISOString(),
         severity: input.severity,
         user: input.user ?? this.identity.currentUserRef(),
-        payload: input.payload,
+        // A batch can span several pages, so a network call records the page it happened on.
+        payload: NETWORK_EVENT_TYPES.has(input.type) ? withPage(input.payload) : input.payload,
       };
 
       void this.queue.enqueue(event).then(

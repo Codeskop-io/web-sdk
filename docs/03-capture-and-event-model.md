@@ -56,7 +56,8 @@ populates the browser-appropriate ones:
 },
 "app": {
   "origin": "https://app.customer.com",   // used for origin binding (D10)
-  "page": "/checkout",                     // path only; query redacted
+  "page": "/checkout",                     // path only; query redacted; read when the batch is sent
+  "environment": "production",              // CodeskopConfig.environment
   "referrer": "…",                          // redacted
   "release": "3.4.1",                       // host-supplied app/release version
   "sdk_version": "1.0.0"
@@ -75,14 +76,16 @@ allowlist (D10).
   "status": 503, "error_kind": "http_5xx",
   "duration_ms": 812, "request_bytes": 240, "response_bytes": 1180,
   "timing": { "dns": 12, "connect": 40, "tls": 180, "ttfb": 520, "total": 812 },
-  "headers": { "content-type": "application/json" } }   // allowlisted + redacted
+  "headers": { "content-type": "application/json" },    // allowlisted + redacted
+  "page": "/checkout" }                                   // the page the call was made from
 
 // exception (uncaught error / rejection / recordException)
 { "exception_class": "TypeError",
   "message": "redacted-by-default",
   "stacktrace": [ { "class": "…", "method": "…", "file": "app.js", "line": 42, "column": 8 } ],
   "handled": false,
-  "page": "/checkout" }
+  "page": "/checkout",
+  "attributes": { "step": "payment" } }   // recordException only; optional
 
 // heartbeat
 { "session_id": "uuid", "visible": true }

@@ -68,7 +68,8 @@ describe('BeaconTransport — sendBeacon available (injected)', () => {
 
     expect(capturedUrl).toBe('https://ingest.codeskop.com/v1/events?key=cs_test_pk_beacon');
     expect(capturedBlob).toBeInstanceOf(Blob);
-    expect(capturedBlob?.type).toBe('application/json');
+    // text/plain is CORS-safelisted: no preflight while the page is closing.
+    expect(capturedBlob?.type).toBe('text/plain;charset=utf-8');
     const text = await capturedBlob?.text();
     expect(text).toBe(JSON.stringify(batch)); // uncompressed — sendBeacon can't set Content-Encoding
     // Optimistic ok: sendBeacon only reports "queued", never the server's response.

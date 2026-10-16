@@ -1,8 +1,9 @@
 /**
  * Sync triggers (`docs/02` §2.4, `web-sdk-workflow.md` Phase 4): the four
  * events that cause the durable queue to drain — batch-size reached, a time
- * window, the browser coming back `online`, and the tab going hidden (the
- * unload-safe beacon path, `docs/02` §2.4). Each trigger only *schedules*
+ * window, the browser coming back `online`, and the tab going hidden or the
+ * page closing (`visibilitychange` / `pagehide`: the unload-safe beacon path,
+ * `docs/02` §2.4). Each trigger only *schedules*
  * work (`runWhenIdle`); the actual drain logic lives in the caller
  * (`runtime/client.ts`), so this module knows nothing about the
  * queue/transport — only when to ask.
@@ -24,7 +25,11 @@ export interface SyncSchedulerOptions {
   getQueueSize: () => Promise<number>;
   /** Steady-state drain: batch-size, time-window, and `online` triggers. */
   onSteadyStateSync: () => void;
-  /** Unload-safe drain: `visibilitychange` → hidden (`docs/02` §2.4). */
+  /**
+   * Unload-safe drain: `visibilitychange` → hidden, or `pagehide` (`docs/02`
+   * §2.4). Called once per hide: when both fire for the same page close, the
+   * second is ignored until the page is shown again.
+   */
   onUnloadSync: () => void;
   /** Injectable globals for tests; default to the real browser ones (`undefined` outside a browser). */
   win?: WindowLike;
@@ -79,10 +84,26 @@ export class SyncScheduler {
   private cancelIdleBatchCheck: CancelIdle | undefined;
   private started = false;
 
+  /** Set once an unload drain ran for this hide; cleared when the page is visible or shown again. */
+  private unloadSent = false;
+
   private readonly handleOnline = (): void => this.scheduleSteadyStateSync();
   private readonly handleVisibilityChange = (): void => {
-    if (this.doc?.visibilityState === 'hidden') this.options.onUnloadSync();
+    if (this.doc?.visibilityState === 'hidden') this.unloadSync();
+    else this.unloadSent = false;
   };
+  // Some browsers (older Safari, some in-app webviews) fire `pagehide` on close without a
+  // `visibilitychange`; `pageshow` re-arms after a back/forward-cache restore.
+  private readonly handlePageHide = (): void => this.unloadSync();
+  private readonly handlePageShow = (): void => {
+    this.unloadSent = false;
+  };
+
+  private unloadSync(): void {
+    if (this.unloadSent) return;
+    this.unloadSent = true;
+    this.options.onUnloadSync();
+  }
 
   constructor(options: SyncSchedulerOptions) {
     this.options = options;
@@ -98,6 +119,8 @@ export class SyncScheduler {
     this.started = true;
 
     this.win?.addEventListener('online', this.handleOnline);
+    this.win?.addEventListener('pagehide', this.handlePageHide);
+    this.win?.addEventListener('pageshow', this.handlePageShow);
     this.doc?.addEventListener('visibilitychange', this.handleVisibilityChange);
     this.intervalHandle = this.setIntervalImpl(() => this.scheduleSteadyStateSync(), this.options.intervalMs);
   }
@@ -108,6 +131,8 @@ export class SyncScheduler {
     this.started = false;
 
     this.win?.removeEventListener('online', this.handleOnline);
+    this.win?.removeEventListener('pagehide', this.handlePageHide);
+    this.win?.removeEventListener('pageshow', this.handlePageShow);
     this.doc?.removeEventListener('visibilitychange', this.handleVisibilityChange);
     if (this.intervalHandle !== undefined) this.clearIntervalImpl(this.intervalHandle);
     this.cancelIdleBatchCheck?.();

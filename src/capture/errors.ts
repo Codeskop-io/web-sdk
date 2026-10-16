@@ -25,6 +25,7 @@ import type { ExceptionPayload, StackFrame } from '../model/types.js';
 import { safely } from '../core/safely.js';
 import { redactErrorMessage, type RedactErrorMessageOptions } from '../core/redaction.js';
 import { getActiveClient } from '../runtime/client.js';
+import { cleanProperties } from '../core/properties.js';
 
 /** The narrow slice of `Window` this module needs — trivial to fake in tests (mirrors `runtime/syncScheduler.ts`). */
 type WindowLike = Pick<Window, 'addEventListener' | 'removeEventListener'>;
@@ -232,17 +233,18 @@ export class ErrorCapture {
 /**
  * The handled-error path (`docs/05` §5.3's `recordException`): reports an
  * error the host app caught itself. Produces exactly one `exception` event
- * with `handled: true`. `attributes` is accepted for forward API-compat with
- * the documented public signature; the current wire `ExceptionPayload`
- * (`docs/03` §3.4) has no field for it yet, so it isn't placed on the wire
- * by this phase — a future contract change (not this file) would thread it
- * through. Never throws; wrapped in `safely()` per D4, same as every other
+ * with `handled: true`. `attributes` go on the wire as the payload's
+ * `attributes`, cleaned like `track` properties (scalars and lists of
+ * scalars; nested objects dropped); the server masks sensitive values as it
+ * does for every payload. Never throws; wrapped in `safely()` per D4, same as every other
  * capture entrypoint in this module. A later integration phase re-exports
  * this from `facade.ts`'s public API.
  */
 export const recordException = safely(
-  (error: unknown, _attributes?: Record<string, unknown>): void => {
-    emitExceptionEvent(toExceptionPayload(error, true));
+  (error: unknown, attributes?: Record<string, unknown>): void => {
+    const payload = toExceptionPayload(error, true);
+    const cleaned = cleanProperties(attributes);
+    emitExceptionEvent(Object.keys(cleaned).length > 0 ? { ...payload, attributes: cleaned } : payload);
   },
   { context: 'capture.errors.recordException' },
 );

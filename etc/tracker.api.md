@@ -29,6 +29,7 @@ export type ApiTimingPayload = NetworkEventPayloadBase;
 export interface AppContext {
     // (undocumented)
     [key: string]: unknown;
+    environment?: string;
     origin: string;
     page: string;
     // (undocumented)
@@ -114,6 +115,7 @@ export type EventType = 'api_error' | 'api_timing' | 'exception' | 'heartbeat' |
 
 // @public
 export interface ExceptionPayload {
+    attributes?: Properties;
     // (undocumented)
     exception_class: string;
     // (undocumented)
@@ -178,7 +180,7 @@ export interface QueueLike {
 }
 
 // @public
-export const recordException: (error: unknown, _attributes?: Record<string, unknown> | undefined) => void | undefined;
+export const recordException: (error: unknown, attributes?: Record<string, unknown> | undefined) => void | undefined;
 
 // @public
 export interface RemoteConfig {

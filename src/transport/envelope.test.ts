@@ -86,6 +86,19 @@ describe('buildBatches — origin resolution (D10)', () => {
     expect(batches[0]?.context.app.origin).toBe('https://app.customer.com');
   });
 
+  it('reads app.page when the batch is built, not when the SDK started', async () => {
+    window.history.pushState({}, '', '/orders/42?token=secret');
+    const { batches } = await buildBatches([makeEvent('e1')], baseContext());
+    expect(batches[0]?.context.app.page).toBe('/orders/42');
+    window.history.pushState({}, '', '/');
+  });
+
+  it('keeps the init-time page when there is no window', async () => {
+    vi.stubGlobal('window', undefined);
+    const { batches } = await buildBatches([makeEvent('e1')], baseContext());
+    expect(batches[0]?.context.app.page).toBe('/checkout');
+  });
+
   it('leaves origin undefined when there is neither a window nor a caller-supplied fallback', async () => {
     vi.stubGlobal('window', undefined);
     const { batches } = await buildBatches([makeEvent('e1')], baseContext(undefined));

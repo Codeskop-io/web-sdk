@@ -175,6 +175,24 @@ describe('CodeskopClient — emitEvent', () => {
     await vi.waitFor(() => expect(queue.events).toHaveLength(1));
   });
 
+  it('stamps network events with the page they happened on', async () => {
+    const queue = fakeQueue();
+    client = new CodeskopClient(config, {
+      installId: 'inst_test',
+      queue,
+      fetchTransport: fakeTransport(),
+      beaconTransport: fakeTransport(),
+      configSource: fakeConfigSource({ ...DEFAULT_REMOTE_CONFIG, features: { network: true } }),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    window.history.pushState({}, '', '/cart?coupon=secret');
+    client.emitEvent({ type: 'api_timing', severity: 'low', payload: { method: 'GET', host: 'api.example.com', path: '/x', duration_ms: 12 } });
+    await vi.waitFor(() => expect(queue.events).toHaveLength(1));
+    expect((queue.events[0]?.payload as { page?: string }).page).toBe('/cart');
+    window.history.pushState({}, '', '/');
+  });
+
   it('applies the remote sample rate to request timings but always keeps errors', async () => {
     const queue = fakeQueue();
     client = new CodeskopClient(config, {
