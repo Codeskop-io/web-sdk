@@ -32,6 +32,11 @@ describe('collectContext', () => {
     expect(app['version_name']).toBe('3.4.1');
   });
 
+  it('sends the configured environment, defaulting to production', () => {
+    expect(collectContext({ ...baseConfig, environment: 'staging' }, 'inst_abc').app.environment).toBe('staging');
+    expect(collectContext(baseConfig, 'inst_abc').app.environment).toBe('production');
+  });
+
   it('reduces the page URL to a path only (query dropped)', () => {
     window.history.pushState({}, '', '/checkout?token=secret');
     const { app } = collectContext(baseConfig, 'inst_abc');

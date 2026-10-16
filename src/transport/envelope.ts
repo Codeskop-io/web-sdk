@@ -24,6 +24,7 @@ import type {
 import { systemClock } from '../core/id.js';
 import { compressJson } from './compress.js';
 import { resolveBrowserOrigin } from './origin.js';
+import { collectPage } from '../core/context.js';
 import { MAX_COMPRESSED_BYTES, MAX_EVENT_BYTES, MAX_EVENTS_PER_BATCH } from './constants.js';
 
 const textEncoder = new TextEncoder();
@@ -73,12 +74,14 @@ function splitInHalf<T>(items: readonly T[]): [T[], T[]] {
 
 function resolveContext(context: BuildBatchesContext): BatchEnvelope['context'] {
   const origin = resolveBrowserOrigin() ?? context.app.origin;
+  // The page changes with in-app navigation, so it's read now rather than at `init`.
+  const page = collectPage() || context.app.page;
   return {
     device: context.device,
     // `origin` is `string | undefined` at runtime (no browser, no fallback
     // supplied) even though `AppContext.origin` is typed as a required
     // `string` — the wire contract tolerates its absence; see `docs/03` §3.3.
-    app: { ...context.app, origin } as AppContext,
+    app: { ...context.app, page, origin } as AppContext,
   };
 }
 

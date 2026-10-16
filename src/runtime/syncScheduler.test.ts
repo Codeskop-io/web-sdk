@@ -98,6 +98,51 @@ describe('SyncScheduler', () => {
     expect(onSteadyStateSync).not.toHaveBeenCalled();
   });
 
+  it('pagehide triggers the unload (beacon) sync', () => {
+    const { scheduler, win, onUnloadSync, onSteadyStateSync } = buildScheduler();
+    scheduler.start();
+    win.fire('pagehide');
+    expect(onUnloadSync).toHaveBeenCalledTimes(1);
+    expect(onSteadyStateSync).not.toHaveBeenCalled();
+    scheduler.stop();
+  });
+
+  it('a page close that fires both visibilitychange (hidden) and pagehide sends only once', () => {
+    const { scheduler, win, doc, setVisibility, onUnloadSync } = buildScheduler();
+    scheduler.start();
+    setVisibility('hidden');
+    doc.fire('visibilitychange');
+    win.fire('pagehide');
+    expect(onUnloadSync).toHaveBeenCalledTimes(1);
+    scheduler.stop();
+  });
+
+  it('re-arms the unload sync once the page is visible again, or restored with pageshow', () => {
+    const { scheduler, win, doc, setVisibility, onUnloadSync } = buildScheduler();
+    scheduler.start();
+    setVisibility('hidden');
+    doc.fire('visibilitychange');
+    setVisibility('visible');
+    doc.fire('visibilitychange');
+    setVisibility('hidden');
+    doc.fire('visibilitychange');
+    expect(onUnloadSync).toHaveBeenCalledTimes(2);
+    win.fire('pageshow');
+    win.fire('pagehide');
+    expect(onUnloadSync).toHaveBeenCalledTimes(3);
+    scheduler.stop();
+  });
+
+  it('stop() also detaches pagehide and pageshow', () => {
+    const { scheduler, win } = buildScheduler();
+    scheduler.start();
+    expect(win.listenerCount('pagehide')).toBe(1);
+    expect(win.listenerCount('pageshow')).toBe(1);
+    scheduler.stop();
+    expect(win.listenerCount('pagehide')).toBe(0);
+    expect(win.listenerCount('pageshow')).toBe(0);
+  });
+
   it('visibilitychange while visible (tab regains focus) triggers neither sync', () => {
     const { scheduler, doc, setVisibility, onUnloadSync, onSteadyStateSync } = buildScheduler();
     scheduler.start();

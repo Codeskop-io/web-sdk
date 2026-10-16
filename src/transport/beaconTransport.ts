@@ -11,11 +11,13 @@
  *
  * - **No custom headers.** `sendBeacon` cannot carry an `Authorization`
  *   header, so the public key travels as a query parameter on this path only
- *   (`?key=…`) — today's mock/backend (`docs/03` §3.2) authenticates via the
- *   header alone and does not honor this, so a real `sendBeacon` delivery
- *   currently 401s server-side. This is a known contract gap for whoever owns
- *   the real endpoint (flagged for Phase 11), not something this transport can
- *   paper over from the browser.
+ *   (`?key=…`). The backend accepts a public key there (backend v0.29.2+);
+ *   secret keys are always refused in the URL.
+ * - **No preflight on page close.** The body is sent as
+ *   `text/plain;charset=UTF-8`, a CORS-safelisted type, so the browser sends
+ *   it without a preflight request that might not finish while the page is
+ *   closing. The backend reads the raw body as JSON whatever its
+ *   `Content-Type`.
  * - **No response visibility.** `sendBeacon` only reports whether the browser
  *   *queued* the request, never the server's response, so a queued beacon is
  *   reported optimistically as `ok: true` — an intentional
@@ -47,6 +49,9 @@ export interface BeaconTransportOptions {
 }
 
 const EVENTS_PATH = '/v1/events';
+
+/** CORS-safelisted, so `sendBeacon` never triggers a preflight. */
+export const BEACON_CONTENT_TYPE = 'text/plain;charset=UTF-8';
 
 function globalSendBeacon(): SendBeaconLike | undefined {
   if (typeof navigator === 'undefined') return undefined;
@@ -91,9 +96,10 @@ export class BeaconTransport implements Transport {
 
   private sendViaBeacon(batch: BatchEnvelope, sendBeacon: SendBeaconLike): TransportResult {
     // `sendBeacon` cannot set `Content-Encoding`, so the body must be
-    // uncompressed JSON for the server to parse it (see module doc).
+    // uncompressed JSON for the server to parse it. `text/plain` keeps the
+    // request CORS-simple: no preflight while the page is closing (see module doc).
     const json = JSON.stringify(batch);
-    const blob = new Blob([json], { type: 'application/json' });
+    const blob = new Blob([json], { type: BEACON_CONTENT_TYPE });
     const url = `${this.endpoint}${EVENTS_PATH}?key=${encodeURIComponent(this.apiKey)}`;
 
     const queued = sendBeacon(url, blob);

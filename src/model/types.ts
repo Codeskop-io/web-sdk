@@ -45,6 +45,8 @@ export interface AppContext {
   page: string;
   referrer?: string;
   release?: string;
+  /** `CodeskopConfig.environment`; defaults to `"production"`. */
+  environment?: string;
   sdk_version: string;
   [key: string]: unknown;
 }
@@ -69,6 +71,8 @@ interface NetworkEventPayloadBase {
   timing?: NetworkTiming;
   /** Allowlisted + redacted response headers. */
   headers?: Record<string, string>;
+  /** The page (path only) the app was on when the call was made. */
+  page?: string;
 }
 
 /** Payload for a failed `fetch`/XHR call (network error or a status of 400 or above). */
@@ -96,6 +100,8 @@ export interface ExceptionPayload {
   stacktrace: StackFrame[];
   handled: boolean;
   page: string;
+  /** `recordException`'s attributes: scalars and lists of scalars. */
+  attributes?: Properties;
 }
 
 /** Payload for a presence signal, emitted only while the page is visible (D2). */

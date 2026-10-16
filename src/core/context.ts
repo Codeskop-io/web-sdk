@@ -1,9 +1,11 @@
 /**
  * Context collector (`docs/03` §3.3, `web-sdk-workflow.md` Phase 4): builds
  * the `device`/`app` fields sent once per batch. Everything here is read
- * exactly once, synchronously, at `init` — never re-read per event — the
- * "per-page-load stable" context cache in the architecture diagram
- * (`docs/02` §2.3).
+ * once, synchronously, at `init` (the "per-page-load stable" context cache in
+ * the architecture diagram, `docs/02` §2.3) except `app.page`, which changes
+ * on every in-app navigation: `transport/envelope.ts` re-reads it with
+ * `collectPage()` each time a batch is built, and network events carry their
+ * own `page` from the moment they were captured.
  *
  * Every field read is individually guarded: a missing/throwing platform API
  * degrades that one field to an empty string rather than failing the whole
@@ -11,6 +13,9 @@
  */
 import type { AppContext, CodeskopConfig, DeviceContext } from '../model/types.js';
 import { SDK_VERSION } from './version.js';
+
+/** `CodeskopConfig.environment`'s documented default. */
+export const DEFAULT_ENVIRONMENT = 'production';
 
 /** The slice of the experimental `NavigatorUAData` this module reads. Not yet in `lib.dom.d.ts`. */
 interface NavigatorUserAgentData {
@@ -66,8 +71,8 @@ function collectViewportSize(): string {
   }
 }
 
-/** Path only — the query string is always dropped (`docs/03` §3.5). */
-function collectPage(): string {
+/** The current page: path only — the query string is always dropped (`docs/03` §3.5). */
+export function collectPage(): string {
   try {
     if (typeof window === 'undefined' || !window.location) return '';
     return window.location.pathname || '/';
@@ -116,6 +121,7 @@ export function collectContext(config: CodeskopConfig, installId: string): Colle
     page: collectPage(),
     referrer: collectReferrer(),
     release: config.release,
+    environment: config.environment || DEFAULT_ENVIRONMENT,
     // Mirrors `release` under the name the mobile SDKs use, so the dashboard's
     // app-version columns and release health work for web apps too.
     ...(config.release ? { version_name: config.release } : {}),

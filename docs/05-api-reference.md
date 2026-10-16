@@ -30,7 +30,7 @@ init({
 | `apiKey` | `string` | — | Public ingest key `cs_*_pk_…` (required) |
 | `endpoint` | `string` | `https://api.codeskop.com` | Ingest base URL |
 | `release` | `string?` | — | Host app version stamped into `context.app.release` |
-| `environment` | `string` | `"production"` | Free-form tag |
+| `environment` | `string` | `"production"` | Free-form tag, sent as `context.app.environment` |
 | `captureNetwork` | `boolean` | `true` | Instrument `fetch`/XHR |
 | `captureErrors` | `boolean` | `true` | `error` + `unhandledrejection` handlers |
 | `redactHeaders` | `string[]` | `["authorization","cookie"]` | Always-redacted header names |
@@ -54,6 +54,8 @@ Clear the current user (on logout). The install ID persists.
 recordException(error: unknown, attributes?: Record<string, unknown>): void
 ```
 Report a handled error the app caught itself (the only *active* capture path).
+`attributes` are sent with the error (scalars and lists of scalars; nested objects are
+dropped), and the server masks sensitive values as it does for every event.
 
 ```ts
 setEnabled(enabled: boolean): void
