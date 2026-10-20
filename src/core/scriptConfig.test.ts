@@ -64,6 +64,19 @@ describe('readScriptConfig', () => {
     });
   });
 
+  it('turns click capture off with data-autocapture-clicks="false" (or the data-codeskop- form)', () => {
+    const plain = appendScript({ 'data-codeskop-key': 'cs_live_pk_abc123', 'data-autocapture-clicks': 'false' });
+    expect(readScriptConfig()).toEqual({ apiKey: 'cs_live_pk_abc123', autocapture: { clicks: false } });
+    plain.remove();
+    appendScript({ 'data-codeskop-key': 'cs_live_pk_abc123', 'data-codeskop-autocapture-clicks': 'False' });
+    expect(readScriptConfig()).toEqual({ apiKey: 'cs_live_pk_abc123', autocapture: { clicks: false } });
+  });
+
+  it('leaves click capture on when the attribute is anything but "false"', () => {
+    appendScript({ 'data-codeskop-key': 'cs_live_pk_abc123', 'data-autocapture-clicks': 'true' });
+    expect(readScriptConfig()).toEqual({ apiKey: 'cs_live_pk_abc123' });
+  });
+
   it('ignores opt-out attributes that are not "false"', () => {
     appendScript({ 'data-codeskop-key': 'cs_live_pk_abc123', 'data-codeskop-network': 'true' });
     expect(readScriptConfig()).toEqual({ apiKey: 'cs_live_pk_abc123' });

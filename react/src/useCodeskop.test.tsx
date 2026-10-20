@@ -55,4 +55,16 @@ describe('useCodeskop', () => {
     );
     expect(screen.getByText('overridden')).toBeInTheDocument();
   });
+
+  it('passes track\'s category option straight through to the core (events v2)', () => {
+    let captured: ReturnType<typeof useCodeskop> | undefined;
+    function Capture(): null {
+      captured = useCodeskop();
+      return null;
+    }
+    render(<Capture />);
+    expect(captured?.track).toBe(tracker.track);
+    // Typed by the core: `{ category }` compiles here, and the call is a safe no-op before init.
+    expect(() => captured?.track('login_failed', { reason: 'otp_expired' }, { category: 'identity' })).not.toThrow();
+  });
 });

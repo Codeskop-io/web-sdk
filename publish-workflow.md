@@ -70,7 +70,7 @@ three files on purpose. If you change a gate, change it in all three.
    the committed baselines `etc/tracker.api.md` / `react/etc/tracker-react.api.md`);
    fails on any undocumented signature drift. Runs after both builds, since its entry
    point is each package's built `dist/index.d.ts`.
-6. `npm run size` (core, 12 KB gzipped budget) + `npm run size
+6. `npm run size` (core, 14.1 KB gzipped budget; 15.5 KB for the script-tag build) + `npm run size
    --workspace=@codeskop/tracker-react` (adapter, 2.5 KB gzipped budget).
 7. `npx playwright test` — real Chromium against the vendored mock ingest server
    (§1.2). `e2e/staging-smoke.spec.ts` is opt-in (`test.skip` unless

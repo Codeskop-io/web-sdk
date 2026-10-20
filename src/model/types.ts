@@ -22,7 +22,10 @@ export type Severity = 'low' | 'medium' | 'high' | 'critical';
 
 /** Per-event user attribution; login can change mid-batch (`docs/03` §3.2). */
 export interface UserRef {
+  /** Your user id, after `identify()`. */
   id?: string;
+  /** Kept on the device, sent before and after `identify()`, replaced by `reset()`. */
+  anonymous_id?: string;
   is_anonymous?: boolean;
 }
 
@@ -110,11 +113,21 @@ export interface HeartbeatPayload {
   visible: boolean;
 }
 
+/** Event categories a `track` call can set (`backend/docs/11` §11.2). */
+export type TrackCategory = 'lifecycle' | 'navigation' | 'interaction' | 'identity' | 'conversion';
+
+/** Options for `track`. */
+export interface TrackOptions {
+  /** Without it, the server works one out from the name (`conversion` by default). */
+  category?: TrackCategory;
+}
+
 /** Payload for a custom event (`track`) or a screen/page view (`screen`). */
 export interface AnalyticsPayload {
   name: string;
   properties: Properties;
   session_id: string;
+  category?: TrackCategory;
 }
 
 /** Payload for `identify` traits. */
@@ -139,6 +152,10 @@ export interface CodeskopEvent {
   /** ISO 8601. */
   occurred_at: string;
   severity: Severity;
+  /** The session the event happened in (every event type). */
+  session_id?: string;
+  /** Per-session counter: orders events within the same millisecond. */
+  seq?: number;
   user?: UserRef;
   payload: EventPayload;
 }
@@ -205,6 +222,8 @@ export interface RemoteConfig {
   sample_rates: Record<string, number>;
   features: Record<string, boolean>;
   max_queue_mb: number;
+  /** Automatic capture the project allows; `clicks` is true only with product analytics. */
+  autocapture?: { clicks?: boolean };
   /** For ETag-aware re-fetch / last-known-good caching. */
   etag?: string;
 }
@@ -230,6 +249,8 @@ export interface CodeskopConfig {
   captureErrors?: boolean;
   /** Send a `screen` event for each page and in-app navigation (product analytics). Defaults to `true`. */
   capturePageViews?: boolean;
+  /** Automatic capture. `clicks: false` turns off `$click` events (on by default where the plan and project allow it). */
+  autocapture?: { clicks?: boolean };
   /** Always-redacted header names. Defaults to `["authorization","cookie"]`. */
   redactHeaders?: string[];
   /** Client-seeded sample rates; remote config wins. Defaults to `{}`. */

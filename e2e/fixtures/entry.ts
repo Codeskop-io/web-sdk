@@ -8,24 +8,36 @@
  */
 import { flush, identify, init, recordException, reset, screen, setEnabled, track } from '../../src/index.js';
 import { getActiveClient } from '../../src/runtime/client.js';
-import type { CodeskopConfig, Severity } from '../../src/model/types.js';
+import { isAppEvent } from './appEvents.js';
+import type { CodeskopConfig, CodeskopEvent, QueueLike, Severity, TrackOptions } from '../../src/model/types.js';
 
 export interface CodeskopTestHarness {
   init: (config: CodeskopConfig) => void;
   /** Feeds one `heartbeat` event through the exact seam future capture modules will use. */
   emit: (severity: Severity) => void;
-  /** The durable queue's current depth — proves an event survived (or didn't survive) a reload. */
+  /**
+   * How many of the app's own events are queued: proves an event survived (or
+   * didn't survive) a reload. Leaves out what the SDK adds by itself (`$`
+   * lifecycle events, and the trait-less `identify` that links the anonymous id).
+   */
   queueSize: () => Promise<number>;
+  /** Everything queued, the SDK's own events included. */
+  queuedEvents: () => Promise<CodeskopEvent[]>;
   /** The full public facade (`docs/05-api-reference.md`), finalized in Phase 10, for the e2e pipeline suite. */
   identify: (userId: string, traits?: Record<string, unknown>) => void;
   reset: () => void;
   recordException: (error: unknown, attributes?: Record<string, unknown>) => void;
   setEnabled: (enabled: boolean) => void;
   flush: () => Promise<boolean>;
-  track: (name: string, properties?: Record<string, unknown>) => void;
+  track: (name: string, properties?: Record<string, unknown>, options?: TrackOptions) => void;
   screen: (name: string, properties?: Record<string, unknown>) => void;
   /** Fires a genuine resource-load failure (a broken `<img>`) whose `target.tagName` getter has been overridden to throw — the Phase 10 stability pass's "test double" fault, injected into a real `ErrorCapture` hook rather than simulated. */
   triggerFaultyResourceError: () => void;
+}
+
+async function queuedEvents(): Promise<CodeskopEvent[]> {
+  const client = getActiveClient() as unknown as { queue: QueueLike } | undefined;
+  return client ? client.queue.peekBatch(10_000) : [];
 }
 
 const harness: CodeskopTestHarness = {
@@ -38,10 +50,8 @@ const harness: CodeskopTestHarness = {
       payload: { session_id: 'e2e-session', visible: true },
     });
   },
-  queueSize: async () => {
-    const client = getActiveClient();
-    return client ? client.queueSize() : 0;
-  },
+  queueSize: async () => (await queuedEvents()).filter(isAppEvent).length,
+  queuedEvents,
   identify,
   reset,
   recordException,

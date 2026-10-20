@@ -150,7 +150,15 @@ class IngestHandler(BaseHTTPRequestHandler):
             self._send_json(404, {"error": "not found"})
             return
 
-        ok, reason = is_valid_public_key(self.headers.get("Authorization"))
+        # `navigator.sendBeacon` can't set headers: like the real backend
+        # (backend/docs/11 §11.7), accept the public key as `?key=` instead.
+        authorization = self.headers.get("Authorization")
+        if not authorization and "?" in self.path:
+            from urllib.parse import parse_qs
+
+            key = parse_qs(self.path.split("?", 1)[1]).get("key", [""])[0]
+            authorization = f"Bearer {key}" if key else None
+        ok, reason = is_valid_public_key(authorization)
         if not ok:
             # 401 for a missing/malformed credential; 403 when a secret key is sent.
             status = 403 if "secret" in reason else 401

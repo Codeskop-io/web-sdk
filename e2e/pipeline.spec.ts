@@ -30,6 +30,7 @@ import {
   type MockIngestServer,
 } from './fixtures/env.js';
 import type { CodeskopTestHarness } from './fixtures/entry.js';
+import { isAppEvent } from './fixtures/appEvents.js';
 
 declare global {
   interface Window {
@@ -40,6 +41,7 @@ declare global {
 /** The wire shape of `CodeskopEvent.user` (`model/types.ts`), narrowed from the mock's untyped JSON. */
 interface WireUser {
   id?: string;
+  anonymous_id?: string;
   is_anonymous?: boolean;
 }
 
@@ -47,6 +49,8 @@ interface WireUser {
 interface WireEvent {
   event_id: string;
   type: string;
+  session_id?: string;
+  seq?: number;
   user?: WireUser;
   payload?: Record<string, unknown>;
 }
@@ -83,8 +87,19 @@ async function unblockIngestAndGoOnline(page: Page): Promise<void> {
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
 }
 
-async function receivedEvents(): Promise<WireEvent[]> {
+/** Everything the mock received, the SDK's own events included. */
+async function allReceivedEvents(): Promise<WireEvent[]> {
   return (await fetchMockReceivedEvents(mock.url)) as unknown as WireEvent[];
+}
+
+/** The app's own events: leaves out the SDK's lifecycle events and anonymous-id link (`isAppEvent`). */
+async function receivedEvents(): Promise<WireEvent[]> {
+  return (await allReceivedEvents()).filter(isAppEvent);
+}
+
+/** An identified user on the wire: the user id plus the anonymous id (events v2). */
+function identified(id: string) {
+  return { id, anonymous_id: expect.stringMatching(/^a_[0-9a-f]{32}$/), is_anonymous: false };
 }
 
 test('a failing fetch call is captured as api_error + api_timing, synced, and received with the identified user', async ({
@@ -114,7 +129,7 @@ test('a failing fetch call is captured as api_error + api_timing, synced, and re
   const apiError = events.find((e) => e.type === 'api_error');
   const apiTiming = events.find((e) => e.type === 'api_timing');
 
-  expect(apiError?.user).toEqual({ id: 'user-network', is_anonymous: false });
+  expect(apiError?.user).toEqual(identified('user-network'));
   expect(apiError?.payload?.path).toBe('/boom');
   expect(apiError?.payload?.status).toBe(500);
   expect(apiError?.payload?.error_kind).toBe('http_5xx');
@@ -141,7 +156,7 @@ test('a thrown (uncaught) error is captured, synced, and received with the ident
 
   const [event] = await receivedEvents();
   expect(event?.type).toBe('exception');
-  expect(event?.user).toEqual({ id: 'user-error', is_anonymous: false });
+  expect(event?.user).toEqual(identified('user-error'));
   expect(event?.payload?.handled).toBe(false);
   // Messages are redacted by default (`docs/03` §3.5) — the placeholder, not the raw text, is what's on the wire.
   expect(event?.payload?.message).toBe('[REDACTED]');
@@ -165,7 +180,7 @@ test('an unhandled promise rejection is captured, synced, and received with the 
 
   const [event] = await receivedEvents();
   expect(event?.type).toBe('exception');
-  expect(event?.user).toEqual({ id: 'user-rejection', is_anonymous: false });
+  expect(event?.user).toEqual(identified('user-rejection'));
   expect(event?.payload?.handled).toBe(false);
 });
 
@@ -185,7 +200,7 @@ test('a heartbeat tick is captured, synced, and received with correct user + bat
 
   const [event] = await receivedEvents();
   expect(event?.type).toBe('heartbeat');
-  expect(event?.user).toEqual({ id: 'user-heartbeat', is_anonymous: false });
+  expect(event?.user).toEqual(identified('user-heartbeat'));
 
   const [batch] = await fetchMockReceivedBatches(mock.url);
   expect(batch?.context?.device?.platform).toBe('web');
@@ -283,7 +298,52 @@ test('product analytics: a page view, identify traits and a custom event arrive 
   const byType = Object.fromEntries(events.map((e) => [e.type, e]));
   expect(Object.keys(byType).sort()).toEqual(['identify', 'screen', 'track']);
   expect(byType.identify?.payload).toEqual({ traits: { plan: 'pro' } });
-  expect(byType.track?.user).toEqual({ id: 'user-analytics', is_anonymous: false });
+  expect(byType.track?.user).toEqual(identified('user-analytics'));
   expect(byType.track?.payload?.properties).toEqual({ value: 49.99, currency: 'KES' });
   expect(byType.screen?.payload?.session_id).toBe(byType.track?.payload?.session_id);
+});
+
+test('events v2: lifecycle events, session id, seq and the anonymous id arrive on the wire', async ({ page }) => {
+  await page.goto(app.url);
+  await page.evaluate((endpoint) => {
+    window.__codeskop_test__.init({ apiKey: 'cs_test_pk_e2e_v2', endpoint });
+    window.__codeskop_test__.track('login_failed', { reason: 'otp_expired' }, { category: 'identity' });
+    window.__codeskop_test__.identify('user-v2');
+  }, app.url);
+
+  await expect.poll(async () => (await page.evaluate(() => window.__codeskop_test__.queuedEvents())).length).toBe(4);
+  await page.evaluate(() => window.__codeskop_test__.flush());
+  await expect.poll(async () => (await allReceivedEvents()).length).toBe(4);
+
+  const events = [...(await allReceivedEvents())].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
+  const names = events.map((e) => (e.type === 'identify' ? 'identify' : e.payload?.name));
+  expect(names).toEqual(['$session_started', '$app_opened', 'login_failed', 'identify']);
+  expect(events.map((e) => e.seq)).toEqual([0, 1, 2, 3]);
+
+  const session = events[0]?.session_id;
+  expect(session).toMatch(/^sess_/);
+  for (const e of events) expect(e.session_id).toBe(session);
+
+  expect(events[0]?.payload).toMatchObject({ category: 'lifecycle', properties: { launch_type: 'cold' } });
+  expect(events[1]?.payload).toMatchObject({ category: 'lifecycle', properties: { launch_type: 'cold' } });
+  expect(typeof (events[1]?.payload?.properties as { load_ms?: unknown }).load_ms).toBe('number');
+  expect(events[2]?.payload).toMatchObject({ category: 'identity' });
+
+  // The anonymous id from before login is on the identify event that links it.
+  const anonymousId = events[2]?.user?.anonymous_id;
+  expect(events[2]?.user).toEqual({ anonymous_id: anonymousId, is_anonymous: true });
+  expect(events[3]?.user).toEqual({ id: 'user-v2', anonymous_id: anonymousId, is_anonymous: false });
+});
+
+test('events v2: closing the tab ends the session (closed) by beacon', async ({ page }) => {
+  await page.goto(app.url);
+  await page.evaluate((endpoint) => {
+    window.__codeskop_test__.init({ apiKey: 'cs_test_pk_e2e_close', endpoint });
+  }, app.url);
+  await expect.poll(async () => (await page.evaluate(() => window.__codeskop_test__.queuedEvents())).length).toBe(2);
+
+  await page.close({ runBeforeUnload: true });
+  await expect
+    .poll(async () => (await allReceivedEvents()).find((e) => e.payload?.name === '$session_ended')?.payload?.properties)
+    .toMatchObject({ end_reason: 'closed', screens: 0 });
 });

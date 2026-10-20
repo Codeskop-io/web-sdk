@@ -38,7 +38,7 @@ kill-switch, and by the CI gates.
 
 The web analog of the Android AAR budget. Merge-blocking in CI (Workflow Phase 0).
 
-- **Core gzipped bundle ≤ 12 KB** (initial target; tighten as the surface settles).
+- **Core gzipped bundle ≤ 12 KB** (initial target; tighten as the surface settles). The CI budget is 14.1 KB since 1.5.0 (events v2: sessions, lifecycle events, clicks), and 15.5 KB for the script-tag build.
 - **Zero dependencies** in the core (adapters may depend on their framework only).
 - **No long tasks at init** — initialization does no synchronous network or heavy work;
   capture hooks do the minimum on the calling path and defer the rest.

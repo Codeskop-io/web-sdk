@@ -21,6 +21,8 @@ export type {
   ExceptionPayload,
   HeartbeatPayload,
   AnalyticsPayload,
+  TrackCategory,
+  TrackOptions,
   IdentifyPayload,
   Properties,
   PropertyValue,

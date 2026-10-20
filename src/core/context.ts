@@ -82,7 +82,7 @@ export function collectPage(): string {
 }
 
 /** Origin + path; query/fragment dropped — a referrer's query string carries the same secret risk as any other URL's. */
-function collectReferrer(): string | undefined {
+export function collectReferrer(): string | undefined {
   try {
     if (typeof document === 'undefined' || !document.referrer) return undefined;
     const parsed = new URL(document.referrer);

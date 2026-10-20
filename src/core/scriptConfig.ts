@@ -57,6 +57,8 @@ export function readScriptConfig(): Partial<CodeskopConfig> | undefined {
   if (off('data-codeskop-network')) config.captureNetwork = false;
   if (off('data-codeskop-errors')) config.captureErrors = false;
   if (off('data-codeskop-page-views')) config.capturePageViews = false;
+  // Click capture: data-autocapture-clicks="false" (or data-codeskop-autocapture-clicks="false").
+  if (off('data-autocapture-clicks') || off('data-codeskop-autocapture-clicks')) config.autocapture = { clicks: false };
 
   return config;
 }

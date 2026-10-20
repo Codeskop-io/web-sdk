@@ -16,6 +16,13 @@ import { resolveDefaultStorage } from '../config/cache.js';
 /** Versioned so a future incompatible shape change can be ignored instead of misread. */
 export const INSTALL_ID_STORAGE_KEY = 'codeskop:install_id:v1';
 
+/**
+ * The anonymous id (events v2, `backend/docs/11` §11.5), stored next to the
+ * install id: sent on every event before and after `identify()`, and replaced
+ * by `reset()` so the next person on a shared device starts fresh.
+ */
+export const ANONYMOUS_ID_STORAGE_KEY = 'codeskop:anonymous_id:v1';
+
 /** The narrow slice of `Storage` this module actually needs — trivial to fake in tests. */
 export interface StorageLike {
   getItem(key: string): string | null;
@@ -61,40 +68,40 @@ function randomBytes(length: number): Uint8Array {
   return bytes;
 }
 
-/** Generates a fresh install id — 128 bits of randomness, hex-encoded, with a readable prefix. */
-function generateInstallId(): string {
+/** Generates a fresh id: 128 bits of randomness, hex-encoded, with a readable prefix. */
+function generateId(prefix: string): string {
   const hex = Array.from(randomBytes(16), (byte) => byte.toString(16).padStart(2, '0')).join('');
-  return `inst_${hex}`;
+  return `${prefix}${hex}`;
 }
 
-function readFromStorage(storage: StorageLike | undefined): string | undefined {
+function readFromStorage(storage: StorageLike | undefined, key: string): string | undefined {
   if (!storage) return undefined;
   try {
-    return storage.getItem(INSTALL_ID_STORAGE_KEY) ?? undefined;
+    return storage.getItem(key) ?? undefined;
   } catch {
     return undefined;
   }
 }
 
-function readFromCookie(cookieJar: CookieJar): string | undefined {
+function readFromCookie(cookieJar: CookieJar, key: string): string | undefined {
   try {
-    return cookieJar.read(INSTALL_ID_STORAGE_KEY);
+    return cookieJar.read(key);
   } catch {
     return undefined;
   }
 }
 
-function persist(storage: StorageLike | undefined, cookieJar: CookieJar, value: string): void {
+function persist(storage: StorageLike | undefined, cookieJar: CookieJar, key: string, value: string): void {
   try {
     if (storage) {
-      storage.setItem(INSTALL_ID_STORAGE_KEY, value);
+      storage.setItem(key, value);
       return;
     }
   } catch {
     // `localStorage` exists but threw on write (e.g. Safari private mode) — fall back to the cookie.
   }
   try {
-    cookieJar.write(INSTALL_ID_STORAGE_KEY, value, COOKIE_MAX_AGE_SECONDS);
+    cookieJar.write(key, value, COOKIE_MAX_AGE_SECONDS);
   } catch {
     // Nothing writable: the id simply won't survive this page load.
   }
@@ -113,13 +120,25 @@ export interface ResolveInstallIdOptions {
  * throws regardless of what either store does.
  */
 export function resolveInstallId(options: ResolveInstallIdOptions = {}): string {
+  return resolveStoredId(INSTALL_ID_STORAGE_KEY, 'inst_', options);
+}
+
+/**
+ * Returns the persisted anonymous id (`a_…`), generating one on first use.
+ * With `rotate`, always generates and persists a new one (`reset()`).
+ */
+export function resolveAnonymousId(options: ResolveInstallIdOptions = {}, rotate = false): string {
+  return resolveStoredId(ANONYMOUS_ID_STORAGE_KEY, 'a_', options, rotate);
+}
+
+function resolveStoredId(key: string, prefix: string, options: ResolveInstallIdOptions, rotate = false): string {
   const storage = options.storage ?? resolveDefaultStorage();
   const cookieJar = options.cookieJar ?? documentCookieJar;
 
-  const existing = readFromStorage(storage) ?? readFromCookie(cookieJar);
+  const existing = rotate ? undefined : (readFromStorage(storage, key) ?? readFromCookie(cookieJar, key));
   if (existing) return existing;
 
-  const generated = generateInstallId();
-  persist(storage, cookieJar, generated);
+  const generated = generateId(prefix);
+  persist(storage, cookieJar, key, generated);
   return generated;
 }

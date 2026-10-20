@@ -8,9 +8,8 @@
  *    `identify()`/`reset()` mirror the backend's rule — repeating the same
  *    `userId` updates, never creates, a new user — without re-deriving it:
  *    this class simply always hands back the same `id` unchanged across
- *    calls, and lets the backend own what "same id" means. Before the first
- *    `identify()` (and again after `reset()`), events attribute to the
- *    anonymous install id supplied by the caller (`docs/03` §3.2/§3.3).
+ *    calls, and lets the backend own what "same id" means. Every event also
+ *    carries the anonymous id supplied by the caller (events v2).
  *
  *  - `validateApiKey` is the fail-soft key gate at `init`: it accepts
  *    `cs_*_pk_…`, rejects a secret key (`cs_*_sk_…`) or anything malformed,
@@ -38,23 +37,20 @@ export interface IdentitySnapshot {
  * `identify()` is idempotent by design: calling it again — with the same or
  * a different `userId` — simply re-asserts the current identity outright;
  * there is no merge, and the backend (not this class) is what treats a
- * repeated `userId` as an update rather than a new user. `reset()` returns
- * attribution to the anonymous install id, which itself is untouched by
- * either call — install-id persistence belongs to the device-context module,
- * not to identity.
+ * repeated `userId` as an update rather than a new user. `reset()` makes
+ * events anonymous again.
  */
 export class IdentityManager {
   private userId: string | undefined;
   private traits: IdentityTraits | undefined;
 
   /**
-   * @param getInstallId Supplies the per-install anonymous id
-   *   (`docs/03` §3.3 `device.install_id`) used for attribution before the
-   *   first `identify()` / after a `reset()`. Injected rather than generated
-   *   here, and read lazily on every call so a later-assigned install id is
-   *   always reflected.
+   * @param getAnonymousId Supplies the current anonymous id (events v2,
+   *   `backend/docs/11` §11.5), sent on every event before and after
+   *   `identify()`. Read lazily on every call so the id `reset()` rotates in
+   *   is reflected straight away.
    */
-  constructor(private readonly getInstallId: () => string) {}
+  constructor(private readonly getAnonymousId: () => string) {}
 
   /**
    * Associates subsequent events with a stable logical user. Repeating the
@@ -70,9 +66,9 @@ export class IdentityManager {
   }
 
   /**
-   * Clears the current user (e.g. on logout). Subsequent events attribute
-   * back to the anonymous install id; the install id itself persists
-   * (`docs/05` §5.3 — "the install ID persists").
+   * Clears the current user (e.g. on logout). Subsequent events are
+   * anonymous again; the caller rotates the anonymous id. The install id
+   * persists (`docs/05` §5.3).
    */
   reset(): void {
     this.userId = undefined;
@@ -86,13 +82,15 @@ export class IdentityManager {
 
   /**
    * Builds the `UserRef` to attach to an outgoing event (`docs/03` §3.2):
-   * the identified user when known, otherwise the anonymous install id.
+   * always the anonymous id, plus the user id once identified. An anonymous
+   * event carries no `id`, so the backend can link it to the user who later
+   * logs in (`backend/docs/11` §11.5).
    */
   currentUserRef(): UserRef {
-    if (this.userId !== undefined) {
-      return { id: this.userId, is_anonymous: false };
-    }
-    return { id: this.getInstallId(), is_anonymous: true };
+    const anonymous_id = this.getAnonymousId();
+    return this.userId !== undefined
+      ? { id: this.userId, anonymous_id, is_anonymous: false }
+      : { anonymous_id, is_anonymous: true };
   }
 
   /** Snapshot for tests/diagnostics. Traits never leave this object (`docs/04` §4.4). */

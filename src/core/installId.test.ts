@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { documentCookieJar, INSTALL_ID_STORAGE_KEY, resolveInstallId, type CookieJar } from './installId.js';
+import {
+  ANONYMOUS_ID_STORAGE_KEY,
+  documentCookieJar,
+  INSTALL_ID_STORAGE_KEY,
+  resolveAnonymousId,
+  resolveInstallId,
+  type CookieJar,
+} from './installId.js';
 
 function clearRealCookie(): void {
   document.cookie = `${INSTALL_ID_STORAGE_KEY}=; max-age=0; path=/`;
@@ -85,5 +92,33 @@ describe('resolveInstallId', () => {
   it('falls back to the real document.cookie jar when localStorage is unusable', () => {
     const id = resolveInstallId({ storage: throwingStorage(), cookieJar: documentCookieJar });
     expect(documentCookieJar.read(INSTALL_ID_STORAGE_KEY)).toBe(id);
+  });
+});
+
+describe('resolveAnonymousId', () => {
+  it('is created once and kept in localStorage next to the install id', () => {
+    const installId = resolveInstallId();
+    const id = resolveAnonymousId();
+    expect(id).toMatch(/^a_[0-9a-f]{32}$/);
+    expect(localStorage.getItem(ANONYMOUS_ID_STORAGE_KEY)).toBe(id);
+    expect(resolveAnonymousId()).toBe(id);
+    expect(resolveInstallId()).toBe(installId);
+  });
+
+  it('rotate replaces it with a new persisted id and leaves the install id alone', () => {
+    const installId = resolveInstallId();
+    const first = resolveAnonymousId();
+    const rotated = resolveAnonymousId({}, true);
+    expect(rotated).not.toBe(first);
+    expect(localStorage.getItem(ANONYMOUS_ID_STORAGE_KEY)).toBe(rotated);
+    expect(resolveAnonymousId()).toBe(rotated);
+    expect(resolveInstallId()).toBe(installId);
+  });
+
+  it('falls back to the cookie jar when storage throws', () => {
+    const jar = memoryCookieJar();
+    const id = resolveAnonymousId({ storage: throwingStorage(), cookieJar: jar });
+    expect(jar.store.get(ANONYMOUS_ID_STORAGE_KEY)).toBe(id);
+    expect(resolveAnonymousId({ storage: throwingStorage(), cookieJar: jar })).toBe(id);
   });
 });
