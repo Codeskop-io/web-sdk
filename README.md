@@ -16,8 +16,8 @@
 
 - **Errors:** uncaught errors and unhandled promise rejections, grouped into issues.
 - **API monitoring:** failing and slow `fetch`/XHR calls, per endpoint.
-- **Product analytics:** page views, custom events, funnels and retention.
-- **Small and safe:** about 12 KB gzipped, zero dependencies. Every call is a no-op if anything goes wrong, so it can never break your app.
+- **Product analytics:** page views, custom events, clicks, sessions, funnels and retention.
+- **Small and safe:** about 14 KB gzipped, zero dependencies. Every call is a no-op if anything goes wrong, so it can never break your app.
 
 Works with React, Next.js, Vue, Svelte, Angular, plain JavaScript, or a single [`<script>` tag](#no-bundler-one-script-tag) on any site.
 
@@ -73,7 +73,26 @@ try {
 }
 
 track("order_completed", { value: 49.99, currency: "KES" });  // product analytics
+track("login_failed", { reason: "otp_expired" }, { category: "identity" });
 ```
+
+`track`'s optional third argument sets the event's category: `lifecycle`, `navigation`, `interaction`, `identity` or `conversion`. Without it, Codeskop works one out from the name. Names starting with `$` are reserved for the SDK.
+
+## Automatic events
+
+The SDK also records each session's journey for you:
+
+- **Lifecycle** (free on every plan): `$app_opened`, `$session_started`, `$session_ended` (after 30 minutes idle or when the tab closes), `$app_backgrounded` and `$app_foregrounded`.
+- **Navigation:** a `screen` event per page, with `previous_screen`, and `$deep_link_opened` when a visit comes from another site or a link with `utm_` parameters.
+- **Clicks:** `$click` for buttons and links, with up to 64 characters of their visible text. Never what users type. On plans with product analytics, unless you turn it off in the dashboard (Settings, SDK) or in code:
+
+```ts
+init({ apiKey: "cs_live_pk_…", autocapture: { clicks: false } });
+```
+
+With the script tag, add `data-autocapture-clicks="false"`. To skip one element (and everything inside it), add `data-codeskop-ignore`.
+
+Every event carries its session id and order, so errors and failing API calls show up in the user's journey.
 
 ## Plans
 
@@ -89,7 +108,7 @@ The SDK is the same on every plan; your plan decides what's kept. See [pricing](
 
 ## Privacy
 
-No third-party cookies and no fingerprinting: an anonymous install ID lives in `localStorage` (a first-party cookie only if storage is unavailable). Request and response bodies, `Authorization` and `Cookie` headers and query strings are never sent, and error messages are redacted by default. You choose the user ID. Details: [Privacy & Security](https://www.codeskop.com/docs/privacy?utm_source=npm&utm_medium=readme&utm_campaign=tracker).
+No third-party cookies and no fingerprinting: an anonymous install ID and anonymous ID live in `localStorage` (a first-party cookie only if storage is unavailable), and `reset()` replaces the anonymous ID on logout. Request and response bodies, `Authorization` and `Cookie` headers and query strings are never sent, and error messages are redacted by default. You choose the user ID. Details: [Privacy & Security](https://www.codeskop.com/docs/privacy?utm_source=npm&utm_medium=readme&utm_campaign=tracker).
 
 ## Documentation
 

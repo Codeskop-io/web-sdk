@@ -15,7 +15,7 @@
  * disposes whatever client is currently active (auto-started or not) and
  * starts a fresh one.
  */
-import type { CodeskopConfig } from './model/types.js';
+import type { CodeskopConfig, TrackOptions } from './model/types.js';
 import { safely } from './core/safely.js';
 import { validateApiKey } from './core/identity.js';
 import { readScriptConfig, readScriptUserId } from './core/scriptConfig.js';
@@ -94,12 +94,13 @@ export const identify = safely((userId: string, traits?: Record<string, unknown>
 }, { context: 'identify' });
 
 /**
- * Clears the current user (`docs/05` §5.3), e.g. on logout. The install ID
- * persists. A safe no-op before `init()`.
+ * Product analytics: a custom event, e.g.
+ * `track('login_failed', { reason: 'invalid_password' }, { category: 'identity' })`.
+ * `category` is optional (the server works one out from the name). Names
+ * starting with `$` are reserved for the SDK's own events and are dropped.
  */
-/** Product analytics: a custom event, e.g. `track('order_completed', { value: 49.99, currency: 'KES' })`. */
-export const track = safely((name: string, properties?: Record<string, unknown>): void => {
-  getActiveClient()?.track(name, properties);
+export const track = safely((name: string, properties?: Record<string, unknown>, options?: TrackOptions): void => {
+  getActiveClient()?.track(name, properties, options);
 }, { context: 'track' });
 
 /** Product analytics: a screen or page view. Pages are captured automatically on the web. */
@@ -107,6 +108,11 @@ export const screen = safely((name: string, properties?: Record<string, unknown>
   getActiveClient()?.screen(name, properties);
 }, { context: 'screen' });
 
+/**
+ * Clears the current user (`docs/05` §5.3), e.g. on logout, and starts a new
+ * anonymous id so the next person on the device isn't merged into this one.
+ * The install ID persists. A safe no-op before `init()`.
+ */
 export const reset = safely((): void => {
   getActiveClient()?.reset();
 }, { context: 'reset' });

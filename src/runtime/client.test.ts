@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CodeskopConfig, CodeskopEvent, ConfigSource, QueueLike, RemoteConfig, Transport, TransportResult } from '../model/types.js';
 import { DEFAULT_REMOTE_CONFIG } from '../config/index.js';
 import { BATCH_SIZE_TRIGGER, CodeskopClient, getActiveClient, setActiveClient } from './client.js';
+import { pageLoad } from '../capture/lifecycle.js';
 
 // Page views off by default here: they'd add a `screen` event to every queue; tested on their own below.
 const config: CodeskopConfig = { apiKey: 'cs_test_pk_client', endpoint: 'https://ingest.example.com', capturePageViews: false };
@@ -16,11 +17,17 @@ function heartbeatEvent(id: string): CodeskopEvent {
   };
 }
 
-function fakeQueue(initial: CodeskopEvent[] = []): QueueLike & { events: CodeskopEvent[] } {
+/** SDK `$` events (lifecycle, clicks, deep links) are left out unless `withSdkEvents`, so older tests count only their own. */
+function isSdkEvent(event: CodeskopEvent): boolean {
+  return String((event.payload as { name?: unknown }).name ?? '').startsWith('$');
+}
+
+function fakeQueue(initial: CodeskopEvent[] = [], withSdkEvents = false): QueueLike & { events: CodeskopEvent[] } {
   const events = [...initial];
   return {
     events,
     async enqueue(event) {
+      if (!withSdkEvents && isSdkEvent(event)) return;
       if (!events.some((existing) => existing.event_id === event.event_id)) events.push(event);
     },
     async peekBatch(maxEvents) {
@@ -63,10 +70,14 @@ afterEach(() => {
   setActiveClient(undefined);
   Reflect.deleteProperty(document, 'visibilityState');
   vi.unstubAllGlobals();
+  sessionStorage.clear();
+  localStorage.clear();
+  pageLoad.opened = false;
+  pageLoad.screened = false;
 });
 
 describe('CodeskopClient — emitEvent', () => {
-  it('enqueues a well-formed event attributed to the anonymous install id', async () => {
+  it('enqueues a well-formed event attributed to the anonymous id, with its session and seq', async () => {
     const queue = fakeQueue();
     client = new CodeskopClient(config, {
       installId: 'inst_test',
@@ -82,7 +93,11 @@ describe('CodeskopClient — emitEvent', () => {
     const [event] = queue.events;
     expect(event?.type).toBe('heartbeat');
     expect(event?.severity).toBe('low');
-    expect(event?.user).toEqual({ id: 'inst_test', is_anonymous: true });
+    expect(event?.user).toEqual({ anonymous_id: localStorage.getItem('codeskop:anonymous_id:v1'), is_anonymous: true });
+    expect(event?.user?.anonymous_id).toMatch(/^a_/);
+    expect(event?.session_id).toMatch(/^sess_/);
+    expect((event?.payload as { session_id: string }).session_id).toBe(event?.session_id);
+    expect(event?.seq).toBe(2); // after $session_started (0) and $app_opened (1)
     expect(event?.event_id).toBeTruthy();
     expect(event?.occurred_at).toBeTruthy();
   });
@@ -375,13 +390,19 @@ describe('CodeskopClient — identify / reset', () => {
 
     client.identify('user_42'); // traits would add an identify event (tested under product analytics)
     client.emitEvent({ type: 'heartbeat', severity: 'low', payload: { session_id: 's1', visible: true } });
-    await vi.waitFor(() => expect(queue.events).toHaveLength(1));
-    expect(queue.events[0]?.user).toEqual({ id: 'user_42', is_anonymous: false });
+    await vi.waitFor(() => expect(queue.events).toHaveLength(2));
+    const anonymousId = localStorage.getItem('codeskop:anonymous_id:v1');
+    // The identify event links the anonymous id, then later events carry both.
+    expect(queue.events[0]).toMatchObject({ type: 'identify', user: { id: 'user_42', anonymous_id: anonymousId } });
+    expect(queue.events[1]?.user).toEqual({ id: 'user_42', anonymous_id: anonymousId, is_anonymous: false });
 
     client.reset();
     client.emitEvent({ type: 'heartbeat', severity: 'low', payload: { session_id: 's2', visible: true } });
-    await vi.waitFor(() => expect(queue.events).toHaveLength(2));
-    expect(queue.events[1]?.user).toEqual({ id: 'inst_test', is_anonymous: true });
+    await vi.waitFor(() => expect(queue.events).toHaveLength(3));
+    const rotated = localStorage.getItem('codeskop:anonymous_id:v1');
+    expect(rotated).toMatch(/^a_/);
+    expect(rotated).not.toBe(anonymousId);
+    expect(queue.events[2]?.user).toEqual({ anonymous_id: rotated, is_anonymous: true });
   });
 });
 

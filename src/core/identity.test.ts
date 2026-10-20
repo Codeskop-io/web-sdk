@@ -2,17 +2,17 @@ import { describe, expect, it, vi } from 'vitest';
 import { IdentityManager, validateApiKey } from './identity.js';
 
 describe('IdentityManager', () => {
-  it('attributes to the anonymous install id before identify() is ever called', () => {
-    const manager = new IdentityManager(() => 'install-abc');
+  it('sends only the anonymous id (no user id) before identify() is ever called', () => {
+    const manager = new IdentityManager(() => 'a_abc');
     expect(manager.isAnonymous).toBe(true);
-    expect(manager.currentUserRef()).toEqual({ id: 'install-abc', is_anonymous: true });
+    expect(manager.currentUserRef()).toEqual({ anonymous_id: 'a_abc', is_anonymous: true });
   });
 
   it('identify() switches attribution to the identified user', () => {
     const manager = new IdentityManager(() => 'install-abc');
     manager.identify('user-1');
     expect(manager.isAnonymous).toBe(false);
-    expect(manager.currentUserRef()).toEqual({ id: 'user-1', is_anonymous: false });
+    expect(manager.currentUserRef()).toEqual({ id: 'user-1', anonymous_id: 'install-abc', is_anonymous: false });
   });
 
   it('repeating identify() with the same userId re-asserts, not duplicates, the identity', () => {
@@ -24,46 +24,46 @@ describe('IdentityManager', () => {
       traits: { plan: 'pro' },
       isAnonymous: false,
     });
-    expect(manager.currentUserRef()).toEqual({ id: 'user-1', is_anonymous: false });
+    expect(manager.currentUserRef()).toEqual({ id: 'user-1', anonymous_id: 'install-abc', is_anonymous: false });
   });
 
   it('identify() with a different userId replaces the current identity outright', () => {
     const manager = new IdentityManager(() => 'install-abc');
     manager.identify('user-1');
     manager.identify('user-2');
-    expect(manager.currentUserRef()).toEqual({ id: 'user-2', is_anonymous: false });
+    expect(manager.currentUserRef()).toEqual({ id: 'user-2', anonymous_id: 'install-abc', is_anonymous: false });
   });
 
-  it('reset() clears the identified user and reverts attribution to the install id', () => {
+  it('reset() clears the identified user and makes events anonymous again', () => {
     const manager = new IdentityManager(() => 'install-abc');
     manager.identify('user-1', { plan: 'pro' });
     manager.reset();
     expect(manager.isAnonymous).toBe(true);
-    expect(manager.currentUserRef()).toEqual({ id: 'install-abc', is_anonymous: true });
+    expect(manager.currentUserRef()).toEqual({ anonymous_id: 'install-abc', is_anonymous: true });
     expect(manager.snapshot()).toEqual({ userId: undefined, traits: undefined, isAnonymous: true });
   });
 
-  it('reset() does not touch the install id — a later anonymous ref uses the same id', () => {
-    const getInstallId = vi.fn(() => 'install-stable');
-    const manager = new IdentityManager(getInstallId);
+  it('reset() itself does not rotate the anonymous id (the client does)', () => {
+    const getAnonymousId = vi.fn(() => 'a_stable');
+    const manager = new IdentityManager(getAnonymousId);
     manager.identify('user-1');
     manager.reset();
-    expect(manager.currentUserRef()).toEqual({ id: 'install-stable', is_anonymous: true });
+    expect(manager.currentUserRef()).toEqual({ anonymous_id: 'a_stable', is_anonymous: true });
   });
 
-  it('currentUserRef re-reads the install id supplier lazily (not cached at construction)', () => {
-    let installId = 'install-1';
-    const manager = new IdentityManager(() => installId);
-    expect(manager.currentUserRef().id).toBe('install-1');
-    installId = 'install-2';
-    expect(manager.currentUserRef().id).toBe('install-2');
+  it('currentUserRef re-reads the anonymous id supplier lazily (not cached at construction)', () => {
+    let anonymousId = 'a_1';
+    const manager = new IdentityManager(() => anonymousId);
+    expect(manager.currentUserRef().anonymous_id).toBe('a_1');
+    anonymousId = 'a_2';
+    expect(manager.currentUserRef().anonymous_id).toBe('a_2');
   });
 
   it('traits are never exposed on the wire-facing UserRef, identified or anonymous', () => {
     const manager = new IdentityManager(() => 'install-abc');
     manager.identify('user-1', { email: 'a@b.com', plan: 'pro' });
     const ref = manager.currentUserRef();
-    expect(ref).toEqual({ id: 'user-1', is_anonymous: false });
+    expect(ref).toEqual({ id: 'user-1', anonymous_id: 'install-abc', is_anonymous: false });
     expect(Object.keys(ref)).not.toContain('traits');
   });
 
@@ -90,7 +90,7 @@ describe('IdentityManager', () => {
   it('reset() before any identify() is a harmless no-op', () => {
     const manager = new IdentityManager(() => 'install-abc');
     expect(() => manager.reset()).not.toThrow();
-    expect(manager.currentUserRef()).toEqual({ id: 'install-abc', is_anonymous: true });
+    expect(manager.currentUserRef()).toEqual({ anonymous_id: 'install-abc', is_anonymous: true });
   });
 });
 

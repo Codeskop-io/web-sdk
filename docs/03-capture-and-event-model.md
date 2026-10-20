@@ -13,6 +13,9 @@
 | `api_timing` | Every instrumented `fetch`/XHR call (latency breakdown) | low |
 | `exception` | Uncaught `error` event, `unhandledrejection`, or `recordException(...)` | high |
 | `heartbeat` | Emitted while the page is visible (presence, D2) | low |
+| `track` | `track(...)`, and the SDK's own `$` events (§3.7) | low |
+| `screen` | Each page / in-app route, and `screen(...)` | low |
+| `identify` | `identify(...)`: traits, and the anonymous-id link (§3.7) | low |
 
 > **Not applicable on web:** `crash`, `crash_native`, `anr` — these are mobile
 > process/OS signals. A web "crash" is an uncaught JS error, captured as `exception`.
@@ -29,7 +32,11 @@
     { "event_id": "uuidv7",                       // client dedup key
       "type": "exception",
       "occurred_at": "…", "severity": "high",
-      "user": { "id": "u_123", "is_anonymous": false },
+      "session_id": "sess_…",                     // 1.5.0+: every event type
+      "seq": 12,                                  // 1.5.0+: per-session counter
+      "user": { "id": "u_123",                    // only after identify()
+                "anonymous_id": "a_…",            // 1.5.0+: always; new after reset()
+                "is_anonymous": false },
       "payload": { … } }
   ]
 }
@@ -89,6 +96,10 @@ allowlist (D10).
 
 // heartbeat
 { "session_id": "uuid", "visible": true }
+
+// track / screen
+{ "name": "login_failed", "category": "identity",   // category: track only, optional
+  "properties": { "reason": "invalid_password" }, "session_id": "sess_…" }
 ```
 
 Timing comes from `PerformanceResourceTiming` where the server exposes the
@@ -116,3 +127,42 @@ value, so the web SDK does **not** transmit one — but it can compute the ident
 paths for API events (`/users/{id}`), and `exception_class` + a hash of the top package-
 filtered stack frames for errors. Matching the recipe means client and server never
 disagree about how a failure groups.
+
+## 3.7 Events v2 (1.5.0)
+
+The web side of [`backend/docs/11`](../../backend/docs/11-events-v2-contract.md), the
+shared events v2 contract.
+
+- **Session and order.** Every event carries a top-level `session_id` and `seq`. A
+  session lives in `sessionStorage` (per tab), spans page loads, and ends after 30 minutes
+  without activity (any event counts as activity). Payloads that have their own
+  `session_id` (`heartbeat`, `track`, `screen`) carry the same value.
+- **Anonymous id.** `user.anonymous_id` is created once, kept in `localStorage` next to
+  the install id, sent on every event before and after `identify()`, and replaced by
+  `reset()`. Anonymous events carry no `user.id`, so the backend can resolve them to the
+  user who later logs in. The `identify` event that links them is sent the first time an
+  anonymous id meets a user id (and whenever traits are passed), and carries the
+  anonymous id from before login.
+- **Categories.** `track(name, props, { category })` sends `payload.category`. An unknown
+  category is left out with a console warning and the server derives one.
+- **Lifecycle events** (`track`, category `lifecycle`, free on every plan, never
+  sampled): `$app_opened` (`launch_type`, `load_ms` from navigation timing once the page
+  has loaded), `$session_started` (`launch_type`), `$session_ended` (`duration_s`,
+  `screens`, `end_reason`: `inactive` when the next event finds the session idle for 30
+  minutes, dated at its last activity; `closed` on `pagehide`, sent by beacon straight
+  away), `$app_backgrounded` (`screen`) and `$app_foregrounded` (`background_s`) from
+  `visibilitychange`. A `pagehide` that is a navigation inside the site (back/forward
+  cache, or a same-origin link or form submit within the last 5 seconds) does not end the
+  session.
+- **Navigation.** `screen` events add `previous_screen`, and the first one of a page load
+  adds `referrer` (origin and path) and `load_ms`. `$deep_link_opened` is sent once per
+  page load (not on reload or back/forward) when the referrer is another site or the URL
+  has `utm_` parameters: `url` is the path plus `utm_` parameters only, `source` is
+  `utm_source` or the referrer's host.
+- **Clicks.** `$click` (category `interaction`) from one throttled, capture-phase
+  `click` listener: buttons, links, `[role=button]` and `input[type=submit|button]` only;
+  `element`, `label` (visible text, else `aria-label`, max 64 characters, never an
+  input's value), `element_id`, `screen`. Sent only when the remote config's
+  `autocapture.clicks` is true and `init({ autocapture: { clicks: false } })` /
+  `data-autocapture-clicks="false"` hasn't turned it off. Anything inside
+  `[data-codeskop-ignore]` is skipped.

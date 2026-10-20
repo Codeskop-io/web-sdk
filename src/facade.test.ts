@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { flush, identify, init, reset, setEnabled } from './facade.js';
+import { flush, identify, init, reset, screen, setEnabled, track } from './facade.js';
 import { getActiveClient, setActiveClient } from './runtime/client.js';
 
 // A reserved/unassigned port (connection refused near-instantly) — the same
@@ -125,5 +125,25 @@ describe('flush — safe no-op before init()', () => {
     vi.spyOn(client!, 'flush').mockRejectedValue(new Error('boom'));
 
     await expect(flush()).resolves.toBe(false);
+  });
+});
+
+describe('track / screen', () => {
+  it('are safe no-ops before init()', () => {
+    expect(() => track('x', {}, { category: 'interaction' })).not.toThrow();
+    expect(() => screen('/x')).not.toThrow();
+  });
+
+  it('pass the name, properties and category options through to the active client', () => {
+    init({ apiKey: 'cs_test_pk_track', endpoint: TEST_ENDPOINT });
+    const client = getActiveClient();
+    const trackSpy = client ? vi.spyOn(client, 'track') : undefined;
+    const screenSpy = client ? vi.spyOn(client, 'screen') : undefined;
+
+    track('login_failed', { reason: 'otp_expired' }, { category: 'identity' });
+    screen('/login', { tab: 'otp' });
+
+    expect(trackSpy).toHaveBeenCalledWith('login_failed', { reason: 'otp_expired' }, { category: 'identity' });
+    expect(screenSpy).toHaveBeenCalledWith('/login', { tab: 'otp' });
   });
 });

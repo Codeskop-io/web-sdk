@@ -21,7 +21,7 @@ export interface CodeskopContextValue {
   setEnabled: typeof setEnabled;
   /** `docs/05` §5.3 — best-effort expedited drain of the queue. */
   flush: typeof flush;
-  /** Product analytics — a custom event with properties. */
+  /** Product analytics: a custom event with properties, and an optional `{ category }`. */
   track: typeof track;
   /** Product analytics — a screen or page view (pages are captured automatically). */
   screen: typeof screen;

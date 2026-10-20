@@ -10,13 +10,17 @@
  * here is meant to be called from outside the runtime and `facade.ts`.
  */
 import type {
+  AnalyticsPayload,
   CodeskopConfig,
   CodeskopEvent,
   ConfigSource,
   EventPayload,
   EventType,
+  Properties,
   QueueLike,
   Severity,
+  TrackCategory,
+  TrackOptions,
   Transport,
   UserRef,
 } from '../model/types.js';
@@ -25,15 +29,17 @@ import { Sampler } from '../core/sampling.js';
 import { ClientStateMachine } from '../core/state.js';
 import { generateEventId, systemClock } from '../core/id.js';
 import { IdentityManager } from '../core/identity.js';
-import { collectContext, collectPage } from '../core/context.js';
-import { resolveInstallId } from '../core/installId.js';
+import { collectContext, collectPage, collectReferrer } from '../core/context.js';
+import { resolveAnonymousId, resolveInstallId } from '../core/installId.js';
+import { resolveDefaultStorage } from '../config/cache.js';
 import { DurableQueue } from '../queue/index.js';
 import { BeaconTransport, buildBatches, FetchTransport, type BuildBatchesContext } from '../transport/index.js';
 import { FeatureGate, RemoteConfigClient } from '../config/index.js';
 import { ErrorCapture } from '../capture/errors.js';
 import { HeartbeatCapture } from '../capture/heartbeat.js';
 import { PageViewCapture } from '../capture/pageviews.js';
-import { SessionManager } from '../core/session.js';
+import { SESSION_TIMEOUT_MS, SessionManager, type SessionState } from '../core/session.js';
+import { deepLink, lifecycleCapture, loadMs, pageLoad, whenLoaded } from '../capture/lifecycle.js';
 import { NetworkCapture } from '../capture/network.js';
 import { SyncScheduler } from './syncScheduler.js';
 
@@ -64,6 +70,12 @@ export interface EmitEventInput {
   payload: EventPayload;
   /** Overrides the current identity for this one event; defaults to `IdentityManager.currentUserRef()`. */
   user?: UserRef;
+  /** When it happened (ms since the epoch); defaults to now. */
+  at?: number;
+  /** Never sampled out (SDK lifecycle events). */
+  always?: boolean;
+  /** Queue the event only once this settles, so a field can be filled in first (`load_ms`). Its `seq` is taken now. */
+  wait?: Promise<unknown>;
 }
 
 /** Test/DI seams — every collaborator `CodeskopClient` would otherwise construct itself. */
@@ -85,6 +97,8 @@ export interface CodeskopClientOptions {
   pageViewCapture?: StartStoppable;
   /** Overrides the session manager (tests). */
   sessions?: SessionManager;
+  /** Overrides the real `LifecycleCapture` (visibility, tab close, clicks). */
+  lifecycleCapture?: StartStoppable;
 }
 
 // Moved to `core/properties.ts` so capture modules can use it without the client; re-exported for compatibility.
@@ -93,6 +107,22 @@ import { cleanProperties } from '../core/properties.js';
 
 /** Event types the remote `features.network` flag gates. */
 const NETWORK_EVENT_TYPES: ReadonlySet<string> = new Set(['api_timing', 'api_error']);
+
+/** The categories `track` accepts (`backend/docs/11` §11.2). */
+const CATEGORIES: readonly string[] = ['lifecycle', 'navigation', 'interaction', 'identity', 'conversion'];
+/** The last anonymous id / user pair an `identify` event linked, so a page load doesn't relink every time. */
+const LINK_KEY = 'codeskop:linked:v1';
+
+/** A usable event name: trimmed, at most 128 characters, and not a reserved `$` name. */
+function eventName(name: unknown): string {
+  const trimmed = typeof name === 'string' ? name.trim() : '';
+  return trimmed[0] === '$' ? '' : trimmed.slice(0, 128);
+}
+
+/** An SDK lifecycle event (`$session_started`, …): category `lifecycle`, never sampled. */
+function lifecycleInput(name: string, properties: Properties, at?: number): EmitEventInput {
+  return { type: 'track', severity: 'low', always: true, at, payload: { name, properties, session_id: '', category: 'lifecycle' } };
+}
 
 /** Stamps the current page onto a payload that doesn't already carry one. */
 function withPage(payload: EventPayload): EventPayload {
@@ -121,6 +151,10 @@ export class CodeskopClient {
   private readonly networkCapture: StartStoppable | undefined;
   private readonly errorCapture: StartStoppable | undefined;
   private readonly heartbeatCapture: StartStoppable;
+  private readonly lifecycleCapture: StartStoppable;
+  private anonymousId: string;
+  /** `$session_started`'s launch type: this page load's for the first session, `warm` after. */
+  private launch: 'cold' | 'warm';
   private draining = false;
   /**
    * The `setEnabled()` local pause/resume (`docs/05` §5.3), deliberately kept
@@ -139,7 +173,8 @@ export class CodeskopClient {
     this.localSampleRates = config.sampleRates ?? {};
 
     const installId = options.installId ?? resolveInstallId();
-    this.identity = new IdentityManager(() => installId);
+    this.anonymousId = resolveAnonymousId();
+    this.identity = new IdentityManager(() => this.anonymousId);
 
     const endpoint = config.endpoint ?? DEFAULT_ENDPOINT;
     this.queue =
@@ -185,8 +220,24 @@ export class CodeskopClient {
           new NetworkCapture({ endpoint, redactHeaderNames: config.redactHeaders, emit: this.emitEvent });
     this.errorCapture = config.captureErrors === false ? undefined : options.errorCapture ?? new ErrorCapture();
     this.sessions = options.sessions ?? new SessionManager();
-    this.heartbeatCapture =
-      options.heartbeatCapture ?? new HeartbeatCapture({ emit: this.emitEvent, sessionId: () => this.sessions.current() });
+    this.launch = this.sessions.existed ? 'warm' : 'cold';
+    // `emitEvent` replaces the heartbeat's own session id with the current one.
+    this.heartbeatCapture = options.heartbeatCapture ?? new HeartbeatCapture({ emit: this.emitEvent });
+    this.lifecycleCapture =
+      options.lifecycleCapture ??
+      lifecycleCapture({
+        lifecycle: (name, properties) => this.lifecycle(name, properties),
+        close: () => this.close(),
+        click:
+          config.autocapture?.clicks === false
+            ? undefined
+            : (properties) => {
+                // Only where the remote config allows it (plan with analytics, project setting on).
+                if (this.featureGate.current.autocapture?.clicks === true) {
+                  this.analytics('track', '$click', properties, 'interaction');
+                }
+              },
+      });
     this.pageViewCapture =
       config.capturePageViews === false
         ? undefined
@@ -194,6 +245,10 @@ export class CodeskopClient {
 
     // Freshly constructed: `uninitialized -> enabled` is always legal.
     this.state.tryTransition('enabled');
+    // Before the scheduler: its hide/close listeners drain the queue, so the
+    // lifecycle events those same browser events produce must be queued first.
+    this.lifecycleCapture.start();
+    this.appOpened();
     this.scheduler.start();
     this.networkCapture?.start();
     this.errorCapture?.start();
@@ -205,31 +260,115 @@ export class CodeskopClient {
   /** The single seam every capture module enqueues an event through. Never throws; a no-op unless `enabled`. */
   readonly emitEvent = safely(
     (input: EmitEventInput): void => {
-      if (!this.localEnabled || !this.state.isEnabled() || this.featureGate.isKillSwitched()) return;
+      if (!this.isActive()) return;
       // Plan gate: the remote config turns network capture off on plans that
       // don't include it (`features.network: false`), whatever `captureNetwork` says.
       if (NETWORK_EVENT_TYPES.has(input.type) && !this.featureGate.isFeatureEnabled('network')) return;
       // Sampling: the remote config's `sample_rates` replace the in-code
       // `sampleRates` once fetched. Errors and exceptions are always kept.
-      if (!this.shouldSample(input.type)) return;
+      if (!input.always && !this.shouldSample(input.type)) return;
 
-      const event: CodeskopEvent = {
-        event_id: generateEventId(systemClock),
-        type: input.type,
-        occurred_at: new Date(systemClock.now()).toISOString(),
-        severity: input.severity,
-        user: input.user ?? this.identity.currentUserRef(),
-        // A batch can span several pages, so a network call records the page it happened on.
-        payload: NETWORK_EVENT_TYPES.has(input.type) ? withPage(input.payload) : input.payload,
-      };
+      // Every event is activity. After 30 idle minutes the old session ends
+      // (`inactive`, dated at its last activity) and a new one starts.
+      const roll = this.sessions.touch(input.at);
+      if (roll.ended) this.endSession(roll.ended, 'inactive');
+      if (roll.started) {
+        this.write(lifecycleInput('$session_started', { launch_type: this.launch }), this.sessions.state!);
+        this.launch = 'warm';
+      }
+      this.write(input, this.sessions.state!);
+    },
+    { context: 'client.emitEvent' },
+  );
 
+  /** Builds and queues one event in `session`, taking its next `seq`. */
+  private write(input: EmitEventInput, session: SessionState): CodeskopEvent {
+    const payload = input.payload as AnalyticsPayload;
+    if ('session_id' in payload) payload.session_id = session.id;
+    if (input.type === 'screen') {
+      if (session.screen && payload.properties.previous_screen === undefined) {
+        payload.properties.previous_screen = session.screen;
+      }
+      session.screen = payload.name;
+      session.screens += 1;
+    }
+    const event: CodeskopEvent = {
+      event_id: generateEventId(systemClock),
+      type: input.type,
+      occurred_at: new Date(input.at ?? systemClock.now()).toISOString(),
+      severity: input.severity,
+      session_id: session.id,
+      seq: session.seq++,
+      user: input.user ?? this.identity.currentUserRef(),
+      // A batch can span several pages, so a network call records the page it happened on.
+      payload: NETWORK_EVENT_TYPES.has(input.type) ? withPage(input.payload) : input.payload,
+    };
+    this.sessions.save();
+
+    const enqueue = (): void => {
       void this.queue.enqueue(event).then(
         () => this.notifyEnqueuedSafely(),
         (error: unknown) => this.report(error, 'client.emitEvent.enqueue'),
       );
-    },
-    { context: 'client.emitEvent' },
-  );
+    };
+    if (input.wait) void input.wait.then(enqueue, enqueue);
+    else enqueue();
+    return event;
+  }
+
+  /** An SDK lifecycle event: sent on every plan (free), never sampled. */
+  private lifecycle(name: string, properties: Properties, wait?: Promise<unknown>): void {
+    this.emitEvent({ ...lifecycleInput(name, properties), wait });
+  }
+
+  private endSession(session: SessionState, end_reason: string): CodeskopEvent {
+    const properties = {
+      duration_s: Math.round((session.last - session.start) / 1000),
+      screens: session.screens,
+      end_reason,
+    };
+    return this.write(lifecycleInput('$session_ended', properties, session.last), session);
+  }
+
+  /** Once per page load: `$app_opened` (with `load_ms` once the page has loaded) and `$deep_link_opened`. */
+  private appOpened(): void {
+    if (pageLoad.opened || typeof location === 'undefined') return;
+    pageLoad.opened = true;
+    const properties: Properties = { launch_type: this.launch };
+    this.lifecycle(
+      '$app_opened',
+      properties,
+      whenLoaded().then(() => {
+        const ms = loadMs();
+        if (ms !== undefined) properties.load_ms = ms;
+      }),
+    );
+    const link = safely(() => deepLink(location.href, document.referrer))();
+    if (link) this.analytics('track', '$deep_link_opened', link, 'navigation');
+  }
+
+  /**
+   * The tab is closing: ends the session (`closed`) and sends that event
+   * straight away by beacon, as the queue's own unload drain may already
+   * have run. It is queued too, in case the beacon fails; the server drops
+   * the duplicate by `event_id`.
+   */
+  private close(): void {
+    const session = this.sessions.state;
+    if (!this.isActive() || !session || session.closed) return;
+    const now = systemClock.now();
+    const idle = now - session.last > SESSION_TIMEOUT_MS;
+    if (!idle) session.last = now;
+    const event = this.endSession(session, idle ? 'inactive' : 'closed');
+    session.closed = 1;
+    this.sessions.save();
+    void safely(async () => {
+      const { batches } = await buildBatches([event], this.batchContext);
+      for (const batch of batches) {
+        if ((await this.beaconTransport.send(batch)).ok) await this.queue.ack([event.event_id]);
+      }
+    }, { context: 'client.close' })();
+  }
 
   /** Tears down timers/listeners — the scheduler and every started capture module. Exposed for tests and for `facade.ts` replacing this instance on a later `init()`. */
   readonly dispose = safely((): void => {
@@ -238,6 +377,7 @@ export class CodeskopClient {
     this.errorCapture?.stop();
     this.heartbeatCapture.stop();
     this.pageViewCapture?.stop();
+    this.lifecycleCapture.stop();
   }, { context: 'client.dispose' });
 
   /** Diagnostics-only: the current durable-queue depth. Not part of the public API (`docs/05`). */
@@ -265,26 +405,66 @@ export class CodeskopClient {
 
   /**
    * `identify`: attributes later events to `userId`. With product analytics on,
-   * traits are also sent (an `identify` event) so they appear on the user's
-   * profile and can be used in segments. Use your own id — never emails or
+   * an `identify` event links the anonymous id (what this browser did before
+   * login) to the user, and carries the traits so they appear on the user's
+   * profile. It is sent when there are traits, or the first time this
+   * anonymous id is linked to this user. Use your own id, never emails or
    * phone numbers (Codeskop masks values that look like them).
    */
   identify(userId: string, traits?: Record<string, unknown>): void {
+    if (typeof userId !== 'string' || !userId) return;
     this.identity.identify(userId, traits);
     const cleaned = cleanProperties(traits);
-    if (Object.keys(cleaned).length && this.analyticsEnabled()) {
+    const link = `${this.anonymousId}|${userId}`;
+    const storage = resolveDefaultStorage();
+    const linked = safely(() => storage?.getItem(LINK_KEY))();
+    if ((Object.keys(cleaned).length || linked !== link) && this.analyticsEnabled()) {
       this.emitEvent({ type: 'identify', severity: 'low', payload: { traits: cleaned } });
+      safely(() => storage?.setItem(LINK_KEY, link))();
     }
   }
 
-  /** Product analytics: a custom event with optional properties, e.g. `track('order_completed', { value: 49.99 })`. */
-  track(name: string, properties?: Record<string, unknown>): void {
-    this.emitAnalytics('track', name, properties);
+  /**
+   * Product analytics: a custom event, e.g. `track('order_completed', { value: 49.99 })`.
+   * Names starting with `$` are reserved for the SDK and dropped. An unknown
+   * `category` is left out (with a console warning) and the server works one out.
+   */
+  track(name: string, properties?: Record<string, unknown>, options?: TrackOptions): void {
+    const cleanName = eventName(name);
+    if (!cleanName) return;
+    let category = options?.category;
+    if (category !== undefined && !CATEGORIES.includes(category)) {
+      if (typeof console !== 'undefined') {
+        console.warn(
+          `[Codeskop] Unknown track category "${String(category)}" left out. Use one of: ${CATEGORIES.join(', ')}.`,
+        );
+      }
+      category = undefined;
+    }
+    this.analytics('track', cleanName, cleanProperties(properties), category);
   }
 
-  /** Product analytics: a screen or page view. Page views are captured automatically unless `capturePageViews: false`. */
+  /**
+   * Product analytics: a screen or page view. Page views are captured
+   * automatically unless `capturePageViews: false`. Adds `previous_screen`,
+   * and on the first screen of a page load the `referrer` (origin and path)
+   * and `load_ms`.
+   */
   screen(name: string, properties?: Record<string, unknown>): void {
-    this.emitAnalytics('screen', name, properties);
+    const cleanName = eventName(name);
+    if (!cleanName) return;
+    const cleaned = cleanProperties(properties);
+    let wait: Promise<unknown> | undefined;
+    if (!pageLoad.screened) {
+      pageLoad.screened = true;
+      const referrer = collectReferrer();
+      if (referrer && cleaned.referrer === undefined) cleaned.referrer = referrer;
+      wait = whenLoaded().then(() => {
+        const ms = loadMs();
+        if (ms !== undefined && cleaned.load_ms === undefined) cleaned.load_ms = ms;
+      });
+    }
+    this.analytics('screen', cleanName, cleaned, undefined, wait);
   }
 
   private analyticsEnabled(): boolean {
@@ -292,18 +472,23 @@ export class CodeskopClient {
     return this.featureGate.isFeatureEnabled('analytics');
   }
 
-  private emitAnalytics(type: 'track' | 'screen', name: string, properties?: Record<string, unknown>): void {
-    if (typeof name !== 'string' || !name.trim() || !this.analyticsEnabled()) return;
-    this.emitEvent({
-      type,
-      severity: 'low',
-      payload: { name: name.trim().slice(0, 128), properties: cleanProperties(properties), session_id: this.sessions.current() },
-    });
+  private analytics(
+    type: 'track' | 'screen',
+    name: string,
+    properties: Properties,
+    category?: TrackCategory,
+    wait?: Promise<unknown>,
+  ): void {
+    if (!this.analyticsEnabled()) return;
+    const payload: AnalyticsPayload = { name, properties, session_id: '' };
+    if (category) payload.category = category;
+    this.emitEvent({ type, severity: 'low', payload, wait });
   }
 
-  /** `docs/05` §5.3's `reset`: delegates to the `IdentityManager` this client already owns. */
+  /** `docs/05` §5.3's `reset`: forgets the user and starts a new anonymous id, so the next person isn't merged into this one. */
   reset(): void {
     this.identity.reset();
+    this.anonymousId = resolveAnonymousId({}, true);
   }
 
   /**

@@ -59,7 +59,9 @@ Then wrap `{children}` with `<Providers>` in `app/layout.tsx`.
 
 ## The hook
 
-`useCodeskop()` gives you `identify`, `reset`, `recordException`, `track`, `screen`, `setEnabled` and `flush`. Every call is a safe no-op, even without a provider above it.
+`useCodeskop()` gives you `identify`, `reset`, `recordException`, `track`, `screen`, `setEnabled` and `flush`. Every call is a safe no-op, even without a provider above it. `track` takes an optional third argument, `{ category }` (`lifecycle`, `navigation`, `interaction`, `identity` or `conversion`).
+
+Every option of `@codeskop/tracker`'s `init` works in the provider's `config`, including `autocapture: { clicks: false }` to turn off click capture.
 
 ```tsx
 import { useCodeskop } from "@codeskop/tracker-react";
@@ -74,6 +76,7 @@ function Checkout({ user }) {
       track("order_completed", { value: 49.99 });
     } catch (error) {
       recordException(error);
+      track("payment_failed", { reason: "declined" }, { category: "conversion" });
     }
   }
   // ...

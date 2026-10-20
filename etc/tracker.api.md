@@ -7,6 +7,8 @@
 // @public
 export interface AnalyticsPayload {
     // (undocumented)
+    category?: TrackCategory;
+    // (undocumented)
     name: string;
     // (undocumented)
     properties: Properties;
@@ -58,6 +60,9 @@ export interface Clock {
 // @public
 export interface CodeskopConfig {
     apiKey: string;
+    autocapture?: {
+        clicks?: boolean;
+    };
     captureErrors?: boolean;
     captureNetwork?: boolean;
     capturePageViews?: boolean;
@@ -75,6 +80,8 @@ export interface CodeskopEvent {
     occurred_at: string;
     // (undocumented)
     payload: EventPayload;
+    seq?: number;
+    session_id?: string;
     // (undocumented)
     severity: Severity;
     // (undocumented)
@@ -184,6 +191,9 @@ export const recordException: (error: unknown, attributes?: Record<string, unkno
 
 // @public
 export interface RemoteConfig {
+    autocapture?: {
+        clicks?: boolean;
+    };
     enabled: boolean;
     etag?: string;
     // (undocumented)
@@ -194,7 +204,7 @@ export interface RemoteConfig {
     sample_rates: Record<string, number>;
 }
 
-// @public (undocumented)
+// @public
 export const reset: () => void | undefined;
 
 // @public
@@ -222,7 +232,15 @@ export interface StackFrame {
 }
 
 // @public
-export const track: (name: string, properties?: Record<string, unknown> | undefined) => void | undefined;
+export const track: (name: string, properties?: Record<string, unknown> | undefined, options?: TrackOptions | undefined) => void | undefined;
+
+// @public
+export type TrackCategory = 'lifecycle' | 'navigation' | 'interaction' | 'identity' | 'conversion';
+
+// @public
+export interface TrackOptions {
+    category?: TrackCategory;
+}
 
 // @public
 export interface Transport {
@@ -240,7 +258,7 @@ export interface TransportResult {
 
 // @public
 export interface UserRef {
-    // (undocumented)
+    anonymous_id?: string;
     id?: string;
     // (undocumented)
     is_anonymous?: boolean;
