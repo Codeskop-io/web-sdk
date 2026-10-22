@@ -5,4 +5,4 @@
  * `package.json` on every release; `fetchTransport.integration.test.ts`
  * already hardcodes the same literal for its own envelope fixtures.
  */
-export const SDK_VERSION = '1.5.0';
+export const SDK_VERSION = '1.6.0';

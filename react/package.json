@@ -1,6 +1,6 @@
 {
   "name": "@codeskop/tracker-react",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "React error tracking and analytics for Codeskop: provider, error boundary and hook. Works with Next.js App Router, Vite and CRA. Free plan.",
   "homepage": "https://www.codeskop.com/docs/web/installation?utm_source=npm&utm_medium=homepage&utm_campaign=tracker-react",
   "bugs": {
@@ -75,7 +75,7 @@
     }
   ],
   "dependencies": {
-    "@codeskop/tracker": "^1.5.0"
+    "@codeskop/tracker": "^1.6.0"
   },
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0"

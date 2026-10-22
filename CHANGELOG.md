@@ -2,7 +2,7 @@
 
 Changes to `@codeskop/tracker` and `@codeskop/tracker-react`. Earlier releases are described in their tagged commits and GitHub releases.
 
-## Unreleased (proposed 1.6.0)
+## 1.6.0 (2026-10-22)
 
 - **New: `captureExceptionMessages`** (default `false`). Opt in to sending exception messages instead of `[REDACTED]`, on every capture path: `window` errors, unhandled rejections, `recordException` and the React error boundary. Same option as the mobile SDKs' `CodeskopConfig.captureExceptionMessages`. Messages can contain user data, so the default is unchanged.
   ```ts
