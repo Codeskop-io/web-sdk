@@ -132,6 +132,8 @@ function withPage(payload: EventPayload): EventPayload {
 }
 
 export class CodeskopClient {
+  /** `CodeskopConfig.captureExceptionMessages`: read by `capture/errors.ts` when it builds a payload. */
+  readonly captureExceptionMessages: boolean;
   private readonly onDiagnostic: DiagnosticHandler;
   private readonly state = new ClientStateMachine();
   private readonly featureGate = new FeatureGate();
@@ -170,6 +172,7 @@ export class CodeskopClient {
 
   constructor(config: CodeskopConfig, options: CodeskopClientOptions = {}) {
     this.onDiagnostic = options.onDiagnostic ?? (() => {});
+    this.captureExceptionMessages = config.captureExceptionMessages === true;
     this.localSampleRates = config.sampleRates ?? {};
 
     const installId = options.installId ?? resolveInstallId();

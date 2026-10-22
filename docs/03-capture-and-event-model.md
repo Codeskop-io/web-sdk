@@ -115,8 +115,9 @@ Applied before anything is queued:
   collected; any configured sensitive key is `[REDACTED]` as a backstop.
 - **URLs:** the query string is **dropped** entirely (only `host` + `path` are kept), so
   query secrets never reach the payload.
-- **Error messages:** redacted by default (they routinely embed user input/PII); opt-in
-  to send raw.
+- **Error messages:** replaced with `[REDACTED]` by default (they routinely embed user
+  input/PII); `captureExceptionMessages: true` sends them as-is. A resource-load
+  failure's URL never includes its query string or fragment, either way.
 - **Never instrument the ingest endpoint itself** (no capture feedback loop).
 
 ## 3.6 Fingerprinting (parity with the backend)

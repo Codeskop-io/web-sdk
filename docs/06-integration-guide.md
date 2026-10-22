@@ -165,7 +165,7 @@ showing up" broken down by root cause, redaction config, and React-specific gotc
 | Events missing on the dashboard | Kill-switch is tripped (`enabled:false`) — note this is only re-checked on the **next page load/`init()`**, not live in an already-open tab, see §11.2 — or the feature is gated off for your plan |
 | CORS error on ingest | **Not** an origin-allowlist rejection today — that mechanism isn't implemented server-side yet (§6.1). Check for an ad-blocker/privacy extension, a restrictive CSP `connect-src`, or a genuinely unreachable `endpoint` instead — §11.2 |
 | No timing breakdown, only `duration_ms` | The API server didn't send `Timing-Allow-Origin` |
-| Error messages arrive as a fixed placeholder, not the real text | Expected — error-message redaction is unconditional today, there is no config field to opt out (§11.3) |
+| Error messages arrive as `[REDACTED]`, not the real text | Expected by default — set `captureExceptionMessages: true` (or `data-codeskop-exception-messages="true"`) to send them (§11.3) |
 
 ## 6.8 Privacy notes
 
@@ -175,8 +175,8 @@ opt-in for this — an earlier draft of this doc and of `docs/04` described bodi
 see `docs/08-security-privacy-audit.md` §8.6 — bodies are simply never captured, full
 stop). `Authorization`/`Cookie` headers are never captured; URL query strings are
 always dropped entirely (not selectively masked — there is no `redactQueryKeys`-style
-option either, same §8.6 history); error messages are redacted unconditionally (§11.3
-has the exact default and why there's no per-call opt-out today). See
+option either, same §8.6 history); error messages are redacted unless you set
+`captureExceptionMessages: true` (§11.3). See
 [`04-security-and-licensing`](./04-security-and-licensing.md).
 
 ## 6.9 Revision note (Phase 15)

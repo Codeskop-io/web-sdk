@@ -64,6 +64,7 @@ export interface CodeskopConfig {
         clicks?: boolean;
     };
     captureErrors?: boolean;
+    captureExceptionMessages?: boolean;
     captureNetwork?: boolean;
     capturePageViews?: boolean;
     endpoint?: string;

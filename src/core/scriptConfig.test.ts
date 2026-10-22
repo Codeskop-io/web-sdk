@@ -64,6 +64,14 @@ describe('readScriptConfig', () => {
     });
   });
 
+  it('opts in to exception messages only with data-codeskop-exception-messages="true"', () => {
+    const on = appendScript({ 'data-codeskop-key': 'cs_live_pk_abc123', 'data-codeskop-exception-messages': 'TRUE' });
+    expect(readScriptConfig()).toEqual({ apiKey: 'cs_live_pk_abc123', captureExceptionMessages: true });
+    on.remove();
+    appendScript({ 'data-codeskop-key': 'cs_live_pk_abc123', 'data-codeskop-exception-messages': 'yes' });
+    expect(readScriptConfig()).toEqual({ apiKey: 'cs_live_pk_abc123' });
+  });
+
   it('turns click capture off with data-autocapture-clicks="false" (or the data-codeskop- form)', () => {
     const plain = appendScript({ 'data-codeskop-key': 'cs_live_pk_abc123', 'data-autocapture-clicks': 'false' });
     expect(readScriptConfig()).toEqual({ apiKey: 'cs_live_pk_abc123', autocapture: { clicks: false } });

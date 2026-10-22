@@ -247,6 +247,13 @@ export interface CodeskopConfig {
   captureNetwork?: boolean;
   /** Install `error` + `unhandledrejection` handlers. Defaults to `true`. */
   captureErrors?: boolean;
+  /**
+   * Send exception messages as-is. Defaults to `false`: messages routinely embed user
+   * input or PII, so only the exception class and stack are sent and the message is
+   * replaced with `[REDACTED]`. Opt in when your messages are safe to collect.
+   * Resource-load failures never include the URL's query string.
+   */
+  captureExceptionMessages?: boolean;
   /** Send a `screen` event for each page and in-app navigation (product analytics). Defaults to `true`. */
   capturePageViews?: boolean;
   /** Automatic capture. `clicks: false` turns off `$click` events (on by default where the plan and project allow it). */

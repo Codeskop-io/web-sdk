@@ -18,6 +18,7 @@ init({
   environment: "production",            // optional
   captureNetwork: true,                 // fetch/XHR instrumentation (default true)
   captureErrors: true,                  // window error + unhandledrejection (default true)
+  captureExceptionMessages: false,      // send error messages instead of [REDACTED] (default false)
   capturePageViews: true,               // a screen event per page/route (default true)
   autocapture: { clicks: true },        // $click events where the plan allows (default on)
   redactHeaders: ["authorization", "cookie"],
@@ -35,6 +36,7 @@ init({
 | `environment` | `string` | `"production"` | Free-form tag, sent as `context.app.environment` |
 | `captureNetwork` | `boolean` | `true` | Instrument `fetch`/XHR |
 | `captureErrors` | `boolean` | `true` | `error` + `unhandledrejection` handlers |
+| `captureExceptionMessages` | `boolean` | `false` | Send exception messages as-is instead of `[REDACTED]` (all capture paths, including `recordException`). Messages can contain user data; opt in only when yours are safe to collect. Resource-load errors keep the URL without its query string |
 | `capturePageViews` | `boolean` | `true` | A `screen` event for the first page and every in-app navigation |
 | `autocapture.clicks` | `boolean` | `true` | `$click` events. Only sent when the remote config's `autocapture.clicks` is also true (plans with product analytics, project setting on). `false` turns them off whatever the remote config says |
 | `redactHeaders` | `string[]` | `["authorization","cookie"]` | Always-redacted header names |
@@ -153,4 +155,5 @@ so they never clash with yours.
 | `data-codeskop-user-id` | The signed-in user's id, rendered by your server |
 | `data-codeskop-endpoint`, `data-codeskop-release`, `data-codeskop-environment` | Same as the `init` options |
 | `data-codeskop-network="false"`, `data-codeskop-errors="false"`, `data-codeskop-page-views="false"` | Turn off a capture |
+| `data-codeskop-exception-messages="true"` | Send exception messages (`captureExceptionMessages: true`) |
 | `data-autocapture-clicks="false"` | Turn off `$click` (`data-codeskop-autocapture-clicks="false"` works too) |

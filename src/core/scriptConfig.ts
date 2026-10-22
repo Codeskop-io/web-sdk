@@ -57,6 +57,10 @@ export function readScriptConfig(): Partial<CodeskopConfig> | undefined {
   if (off('data-codeskop-network')) config.captureNetwork = false;
   if (off('data-codeskop-errors')) config.captureErrors = false;
   if (off('data-codeskop-page-views')) config.capturePageViews = false;
+  // Opt-in: data-codeskop-exception-messages="true" sends exception messages instead of [REDACTED].
+  if (script.getAttribute('data-codeskop-exception-messages')?.trim().toLowerCase() === 'true') {
+    config.captureExceptionMessages = true;
+  }
   // Click capture: data-autocapture-clicks="false" (or data-codeskop-autocapture-clicks="false").
   if (off('data-autocapture-clicks') || off('data-codeskop-autocapture-clicks')) config.autocapture = { clicks: false };
 

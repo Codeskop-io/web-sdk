@@ -114,6 +114,10 @@ redacted with **no reachable opt-out** in the current public API. That's stricte
 the doc's "redacted by default" phrasing implies (which suggests an override exists);
 functionally it means messages cannot leak under any current call pattern.
 
+> **Update (after 1.5.0):** `CodeskopConfig.captureExceptionMessages` (default `false`)
+> now passes `{ raw: true }` on every path above when the host opts in. The default is
+> unchanged, and resource-load URLs drop their query string and fragment either way.
+
 **`identify` traits** — `IdentityManager.identify()` stores `traits` on the instance
 (`src/core/identity.ts:66-70`) purely for local/diagnostic use. `currentUserRef()`
 (`identity.ts:91-96`), the only method that produces wire data, returns a `UserRef`
