@@ -697,6 +697,24 @@ describe('CodeskopClient — capture module lifecycle (Phases 6/7/9 integration)
     expect(heartbeatCapture.startCalls).toBe(1);
   });
 
+  it('exposes captureExceptionMessages: false unless the config opts in', () => {
+    const options = {
+      installId: 'inst_test',
+      queue: fakeQueue(),
+      fetchTransport: fakeTransport(),
+      beaconTransport: fakeTransport(),
+      configSource: fakeConfigSource(),
+      networkCapture: fakeCapture(),
+      errorCapture: fakeCapture(),
+      heartbeatCapture: fakeCapture(),
+    };
+    client = new CodeskopClient(config, options);
+    expect(client.captureExceptionMessages).toBe(false);
+    client.dispose();
+    client = new CodeskopClient({ ...config, captureExceptionMessages: true }, options);
+    expect(client.captureExceptionMessages).toBe(true);
+  });
+
   it('a config-supplied override is never even constructed/started when captureErrors is false', () => {
     const networkCapture = fakeCapture();
     const errorCapture = fakeCapture();

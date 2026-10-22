@@ -4,7 +4,9 @@ import type { EmitEventInput } from '../runtime/client.js';
 import type { ExceptionPayload } from '../model/types.js';
 
 const emitEvent = vi.fn();
-const getActiveClient = vi.fn<() => { emitEvent: typeof emitEvent } | undefined>(() => ({ emitEvent }));
+const getActiveClient = vi.fn<() => { emitEvent: typeof emitEvent; captureExceptionMessages?: boolean } | undefined>(
+  () => ({ emitEvent }),
+);
 
 vi.mock('../runtime/client.js', () => ({
   getActiveClient: () => getActiveClient(),
@@ -301,6 +303,66 @@ describe('capture/errors', () => {
         throw new Error('internal bug');
       });
       expect(() => recordException(new Error('caught it'))).not.toThrow();
+    });
+  });
+
+  describe('captureExceptionMessages', () => {
+    beforeEach(() => {
+      getActiveClient.mockImplementation(() => ({ emitEvent, captureExceptionMessages: true }));
+    });
+
+    it('sends the real message of a thrown Error when enabled', () => {
+      const error = new Error('Card declined for order 42');
+      window.dispatchEvent(new ErrorEvent('error', { message: error.message, error }));
+
+      expect(exceptionPayloadOf(emitEvent.mock.calls[0] ?? []).message).toBe('Card declined for order 42');
+    });
+
+    it('sends the ErrorEvent message when there is no attached Error', () => {
+      window.dispatchEvent(new ErrorEvent('error', { message: 'Script error.', filename: 'https://cdn.example/a.js' }));
+
+      expect(exceptionPayloadOf(emitEvent.mock.calls[0] ?? []).message).toBe('Script error.');
+    });
+
+    it('sends the message of an unhandled rejection, including a non-Error reason', () => {
+      window.dispatchEvent(
+        Object.assign(new Event('unhandledrejection'), { reason: new TypeError('x is undefined'), promise: Promise.resolve() }),
+      );
+      window.dispatchEvent(Object.assign(new Event('unhandledrejection'), { reason: 'plain string', promise: Promise.resolve() }));
+
+      expect(exceptionPayloadOf(emitEvent.mock.calls[0] ?? []).message).toBe('x is undefined');
+      expect(exceptionPayloadOf(emitEvent.mock.calls[1] ?? []).message).toBe('plain string');
+    });
+
+    it('sends the message of a handled error from recordException', () => {
+      recordException(new Error('Profile save failed'));
+
+      expect(exceptionPayloadOf(emitEvent.mock.calls[0] ?? []).message).toBe('Profile save failed');
+    });
+
+    it('drops the query string and fragment of a failed resource URL', () => {
+      const img = document.createElement('img');
+      img.setAttribute('src', 'https://cdn.example/avatar.png?token=secret#x');
+      document.body.appendChild(img);
+      img.dispatchEvent(new Event('error'));
+      const relative = document.createElement('script');
+      relative.setAttribute('src', '/static/app.js?v=1&sig=abc');
+      document.body.appendChild(relative);
+      relative.dispatchEvent(new Event('error'));
+      img.remove();
+      relative.remove();
+
+      expect(exceptionPayloadOf(emitEvent.mock.calls[0] ?? []).message).toBe(
+        'Failed to load img: https://cdn.example/avatar.png',
+      );
+      expect(exceptionPayloadOf(emitEvent.mock.calls[1] ?? []).message).toBe('Failed to load script: /static/app.js');
+    });
+
+    it('stays redacted when the client leaves it off', () => {
+      getActiveClient.mockImplementation(() => ({ emitEvent, captureExceptionMessages: false }));
+      recordException(new Error('secret'));
+
+      expect(exceptionPayloadOf(emitEvent.mock.calls[0] ?? []).message).toBe(REDACTED_MESSAGE_PLACEHOLDER);
     });
   });
 

@@ -108,7 +108,17 @@ The SDK is the same on every plan; your plan decides what's kept. See [pricing](
 
 ## Privacy
 
-No third-party cookies and no fingerprinting: an anonymous install ID and anonymous ID live in `localStorage` (a first-party cookie only if storage is unavailable), and `reset()` replaces the anonymous ID on logout. Request and response bodies, `Authorization` and `Cookie` headers and query strings are never sent, and error messages are redacted by default. You choose the user ID. Details: [Privacy & Security](https://www.codeskop.com/docs/privacy?utm_source=npm&utm_medium=readme&utm_campaign=tracker).
+No third-party cookies and no fingerprinting: an anonymous install ID and anonymous ID live in `localStorage` (a first-party cookie only if storage is unavailable), and `reset()` replaces the anonymous ID on logout. Request and response bodies, `Authorization` and `Cookie` headers and query strings are never sent, and error messages are replaced with `[REDACTED]` by default. You choose the user ID. Details: [Privacy & Security](https://www.codeskop.com/docs/privacy?utm_source=npm&utm_medium=readme&utm_campaign=tracker).
+
+### Exception messages
+
+Error messages often contain user data (emails, IDs, form input), so the SDK sends only the error type and stack trace. If your messages are safe to collect, opt in to see them on the dashboard:
+
+```ts
+init({ apiKey: "cs_live_pk_…", captureExceptionMessages: true });
+```
+
+With the script tag, add `data-codeskop-exception-messages="true"`. The next error shows its message instead of `[REDACTED]`. URLs in resource-load errors never include the query string. More: [Exception messages](https://www.codeskop.com/docs/features/crash-reporting?utm_source=npm&utm_medium=readme&utm_campaign=tracker#exception-messages).
 
 ## Documentation
 

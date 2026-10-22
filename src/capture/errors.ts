@@ -23,7 +23,7 @@
  */
 import type { ExceptionPayload, StackFrame } from '../model/types.js';
 import { safely } from '../core/safely.js';
-import { redactErrorMessage, type RedactErrorMessageOptions } from '../core/redaction.js';
+import { redactErrorMessage, redactUrl, type RedactErrorMessageOptions } from '../core/redaction.js';
 import { getActiveClient } from '../runtime/client.js';
 import { cleanProperties } from '../core/properties.js';
 
@@ -108,11 +108,19 @@ function describeNonError(value: unknown): string {
   }
 }
 
+/**
+ * The active client's `captureExceptionMessages` choice (`CodeskopConfig`), read
+ * per payload so a re-`init()` takes effect at once. Redacted when there is no client.
+ */
+function messageOptions(): RedactErrorMessageOptions {
+  return { raw: getActiveClient()?.captureExceptionMessages === true };
+}
+
 /** Normalizes any thrown/rejected value into the wire `ExceptionPayload` shape (`docs/03` §3.4). */
 function toExceptionPayload(
   value: unknown,
   handled: boolean,
-  redactOptions?: RedactErrorMessageOptions,
+  redactOptions: RedactErrorMessageOptions = messageOptions(),
 ): ExceptionPayload {
   if (value instanceof Error) {
     return {
@@ -132,16 +140,28 @@ function toExceptionPayload(
   };
 }
 
+/** A resource URL without its query string or fragment: `https://cdn.example/a.js?token=x` → `https://cdn.example/a.js`. */
+function stripQuery(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return redactUrl(url).path; // relative src: path only
+  }
+}
+
 /** Payload for a resource-load failure (`<img>`/`<script>`/`<link>` `error` event with no `ErrorEvent.error`). */
 function resourceErrorPayload(event: Event): ExceptionPayload {
   const target = event.target;
   const isElement = typeof Element !== 'undefined' && target instanceof Element;
   const tag = isElement ? target.tagName.toLowerCase() : 'resource';
-  const src = isElement ? (target.getAttribute('src') ?? target.getAttribute('href') ?? undefined) : undefined;
+  const rawSrc = isElement ? (target.getAttribute('src') ?? target.getAttribute('href') ?? undefined) : undefined;
+  // Never the query string or fragment, even when messages are captured: they routinely carry tokens.
+  const src = rawSrc ? stripQuery(rawSrc) : undefined;
 
   return {
     exception_class: 'ResourceError',
-    message: redactErrorMessage(src ? `Failed to load ${tag}: ${src}` : `Failed to load ${tag}`),
+    message: redactErrorMessage(src ? `Failed to load ${tag}: ${src}` : `Failed to load ${tag}`, messageOptions()),
     stacktrace: [],
     handled: false,
     page: currentPage(),
@@ -160,7 +180,7 @@ function scriptErrorPayload(event: ErrorEvent): ExceptionPayload {
     : undefined;
   return {
     exception_class: 'Error',
-    message: redactErrorMessage(event.message || 'Unknown error'),
+    message: redactErrorMessage(event.message || 'Unknown error', messageOptions()),
     stacktrace: frame ? [frame] : [],
     handled: false,
     page: currentPage(),
