@@ -1,30 +1,35 @@
-# A semver tag (`vX.Y.Z`, no `v` in package.json itself) cuts a real release:
-# runs the same full gate suite as ci.yml/publish-dev.yml (kept in sync
-# manually — see the note in publish-dev.yml), verifies the tag actually
-# matches the version that was manually bumped into package.json before
-# tagging, publishes both packages to the `latest` dist-tag, then creates the
-# GitHub Release — mirroring the backend/landing repos' `gh release create
-# "$GITHUB_REF_NAME" --generate-notes --title "$GITHUB_REF_NAME"` convention.
+# Publishes both packages to npm with npm trusted publishing (OIDC): no npm
+# token is stored anywhere. npm allows one trusted publisher per package, so
+# this one workflow handles both paths:
 #
-# Requires the `NPM_TOKEN` repository secret (see docs/10-publishing-setup.md).
-# If it isn't set yet, the publish step fails loudly with an explicit error,
-# not a silent skip.
+# - A semver tag (`vX.Y.Z`) cuts a real release: full gate suite, verify the
+#   tag matches package.json and SDK_VERSION, publish both packages to
+#   `latest`, then create the GitHub Release.
+# - Every push to `development` publishes a prerelease to the `next` dist-tag
+#   as `<package.json version>-dev.<short-sha>` (never committed back).
+#
+# Trusted publisher on npmjs.com, for @codeskop/tracker and
+# @codeskop/tracker-react: GitHub Actions, Codeskop-io / web-sdk, workflow
+# `release.yml`, no environment. Trusted publishing needs npm >= 11.5.1 and a
+# GitHub-hosted runner (see docs/10-publishing-setup.md).
 name: Release (production)
 
 on:
   push:
     tags: ["v*"]
+    branches: [development]
 
 concurrency:
-  group: release-production
+  group: publish-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
   contents: write # create the GitHub Release
+  id-token: write # npm trusted publishing (OIDC) and provenance
 
 jobs:
   release:
-    name: Gate, verify version, publish to 'latest', tag GitHub Release
+    name: Gate, then publish ('latest' on a tag, 'next' on development)
     runs-on: ubuntu-latest
     steps:
       # `on: push: tags` checks out the tagged commit — the release is built
@@ -36,6 +41,10 @@ jobs:
           node-version: 22
           cache: npm
           registry-url: https://registry.npmjs.org/
+
+      # Trusted publishing needs npm >= 11.5.1; Node 22 ships npm 10.
+      - name: Upgrade npm
+        run: npm install -g npm@latest
 
       - uses: actions/setup-python@v5
         with:
@@ -97,6 +106,7 @@ jobs:
       # from the tag is expected in that model and only warned about, not
       # failed.
       - name: Verify tag matches package.json version
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           tag="${GITHUB_REF_NAME#v}"
           core_version="$(node -p "require('./package.json').version")"
@@ -123,29 +133,47 @@ jobs:
           fi
           echo "Tag v$tag matches package.json and SDK_VERSION."
 
-      - name: Verify NPM_TOKEN is configured
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # Computed here, not read from a prior step's mutated package.json —
+      # the version bump below happens in this same job, after every gate has
+      # already passed against the *real* package.json version.
+      - name: Compute prerelease version
+        if: github.ref == 'refs/heads/development'
+        id: version
         run: |
-          if [ -z "$NPM_TOKEN" ]; then
-            echo "::error::NPM_TOKEN repository secret is not set — cannot publish to npm."
-            echo "::error::See docs/10-publishing-setup.md for how to create an npm Automation token"
-            echo "::error::scoped to @codeskop/* and add it as the 'NPM_TOKEN' secret under"
-            echo "::error::Settings -> Secrets and variables -> Actions on Codeskop-io/web-sdk."
-            exit 1
-          fi
+          base="$(node -p "require('./package.json').version")"
+          sha="$(git rev-parse --short HEAD)"
+          version="${base}-dev.${sha}"
+          echo "Computed prerelease version: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Publish core to the 'latest' dist-tag
+      # Rewrites just the `version` field in-place in both package.json files
+      # for this publish only — never committed back to `development`.
+      - name: Stamp prerelease version (core + react adapter)
+        if: github.ref == 'refs/heads/development'
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --tag latest --access public
+          DEV_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            for (const p of ['package.json', 'react/package.json']) {
+              const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
+              pkg.version = process.env.DEV_VERSION;
+              fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + '\n');
+            }
+          "
 
-      - name: Publish react adapter to the 'latest' dist-tag
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --workspace=@codeskop/tracker-react --tag latest --access public
+      - name: Choose the npm dist-tag
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then echo "DIST_TAG=latest" >> "$GITHUB_ENV"; else echo "DIST_TAG=next" >> "$GITHUB_ENV"; fi
+
+      - name: Publish core
+        run: npm publish --tag "$DIST_TAG" --access public --provenance
+
+      - name: Publish react adapter
+        run: npm publish --workspace=@codeskop/tracker-react --tag "$DIST_TAG" --access public --provenance
 
       - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" --generate-notes --title "$GITHUB_REF_NAME"
