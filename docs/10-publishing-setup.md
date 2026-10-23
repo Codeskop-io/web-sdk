@@ -1,5 +1,17 @@
 # 10. Web SDK — Publishing Setup (npmjs.com)
 
+> **Update 2026-10-23: npm trusted publishing.** Publishing no longer uses an
+> `NPM_TOKEN` secret. `.github/workflows/release.yml` publishes through npm
+> trusted publishing (OIDC, with provenance) and now handles both paths: a `vX.Y.Z`
+> tag publishes to `latest` and creates the GitHub Release; every push to
+> `development` publishes a `-dev.<sha>` prerelease to `next`. `publish-dev.yml`
+> was merged into it, because npm allows one trusted publisher per package.
+> Setup on npmjs.com, for both `@codeskop/tracker` and `@codeskop/tracker-react`:
+> Settings → Trusted Publisher → GitHub Actions, `Codeskop-io` / `web-sdk`,
+> workflow `release.yml`, no environment; Publishing access → "Require two-factor
+> authentication and disallow tokens". Token instructions below are historical.
+
+
 > **This entire document is a manual runbook for a human with npmjs.com account
 > access.** Nothing in it can be done by an agent working in this repo — there are no
 > real npmjs.com credentials in this environment, and none should ever be added to it.

@@ -1,5 +1,17 @@
 # Web SDK Publish & Release Workflow (`@codeskop/tracker` + `@codeskop/tracker-react`)
 
+> **Update 2026-10-23: npm trusted publishing.** Publishing no longer uses an
+> `NPM_TOKEN` secret. `.github/workflows/release.yml` publishes through npm
+> trusted publishing (OIDC, with provenance) and now handles both paths: a `vX.Y.Z`
+> tag publishes to `latest` and creates the GitHub Release; every push to
+> `development` publishes a `-dev.<sha>` prerelease to `next`. `publish-dev.yml`
+> was merged into it, because npm allows one trusted publisher per package.
+> Setup on npmjs.com, for both `@codeskop/tracker` and `@codeskop/tracker-react`:
+> Settings → Trusted Publisher → GitHub Actions, `Codeskop-io` / `web-sdk`,
+> workflow `release.yml`, no environment; Publishing access → "Require two-factor
+> authentication and disallow tokens". Token instructions below are historical.
+
+
 > The operational counterpart to [`web-sdk-workflow.md`](./web-sdk-workflow.md): not
 > "how the SDK was built" but **"how a commit becomes a version someone can
 > `npm install`."** Covers the three GitHub Actions workflows, the manual
@@ -16,7 +28,6 @@
 - **Packages:** `@codeskop/tracker` (root) · `@codeskop/tracker-react` (`react/`) —
   separate publishable units, separate SemVer lines (`docs/07-semver-policy.md` §7.1).
 - **Workflow files:** [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) ·
-  [`.github/workflows/publish-dev.yml`](./.github/workflows/publish-dev.yml) ·
   [`.github/workflows/release.yml`](./.github/workflows/release.yml)
 - **Convention matched:** this repo is one of five independent repos in the workspace
   (`backend`, `landing`, `android`, `ui`, `webpack`) that share one release convention —
@@ -30,11 +41,10 @@
 
 ## 1. The three workflows, at a glance
 
-| File | Trigger | What it does | Needs `NPM_TOKEN`? |
+| File | Trigger | What it does | Needs a token? |
 |------|---------|---------------|---------------------|
 | [`ci.yml`](./.github/workflows/ci.yml) | `pull_request` → `development` | Full gate suite (below). Nothing is published. | No |
-| [`publish-dev.yml`](./.github/workflows/publish-dev.yml) | `push` → `development` (i.e. every merge) | Full gate suite, then publishes a **prerelease** to the `next` dist-tag under a version computed at publish time — no manual bump needed for this path. | Yes — fails loudly if missing |
-| [`release.yml`](./.github/workflows/release.yml) | `push` → tag `v*` | Full gate suite, verifies the tag matches the manually-bumped version, then publishes to the `latest` dist-tag and cuts a GitHub Release. | Yes — fails loudly if missing |
+| [`release.yml`](./.github/workflows/release.yml) | `push` → `development` (every merge) and `push` → tag `v*` | Full gate suite. On `development`: publishes a **prerelease** to `next` under a version computed at publish time. On a tag: verifies the tag matches the manually-bumped version, publishes to `latest` and cuts a GitHub Release. | No — npm trusted publishing (OIDC) |
 
 All three run the **same gate suite** — there's no reusable/composite workflow
 abstracting it out (matching how `backend`'s and `landing`'s `ci.yml`/`release.yml`/
