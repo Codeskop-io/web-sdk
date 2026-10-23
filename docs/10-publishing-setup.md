@@ -2,10 +2,9 @@
 
 > **Update 2026-10-23: npm trusted publishing.** Publishing no longer uses an
 > `NPM_TOKEN` secret. `.github/workflows/release.yml` publishes through npm
-> trusted publishing (OIDC, with provenance) and now handles both paths: a `vX.Y.Z`
-> tag publishes to `latest` and creates the GitHub Release; every push to
-> `development` publishes a `-dev.<sha>` prerelease to `next`. `publish-dev.yml`
-> was merged into it, because npm allows one trusted publisher per package.
+> trusted publishing (OIDC, with provenance), only for real releases: a `vX.Y.Z`
+> tag publishes to `latest` and creates the GitHub Release. `publish-dev.yml` and
+> the `next` prereleases were removed (decision 2026-10-23).
 > Setup on npmjs.com, for both `@codeskop/tracker` and `@codeskop/tracker-react`:
 > Settings → Trusted Publisher → GitHub Actions, `Codeskop-io` / `web-sdk`,
 > workflow `release.yml`, no environment; Publishing access → "Require two-factor
