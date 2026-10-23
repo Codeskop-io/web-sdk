@@ -1,12 +1,8 @@
 # Publishes both packages to npm with npm trusted publishing (OIDC): no npm
-# token is stored anywhere. npm allows one trusted publisher per package, so
-# this one workflow handles both paths:
-#
-# - A semver tag (`vX.Y.Z`) cuts a real release: full gate suite, verify the
-#   tag matches package.json and SDK_VERSION, publish both packages to
-#   `latest`, then create the GitHub Release.
-# - Every push to `development` publishes a prerelease to the `next` dist-tag
-#   as `<package.json version>-dev.<short-sha>` (never committed back).
+# token is stored anywhere. Only real releases are published: a semver tag
+# (`vX.Y.Z`) runs the full gate suite, verifies the tag matches package.json and
+# SDK_VERSION, publishes both packages to `latest`, then creates the GitHub
+# Release. Merges to `development` publish nothing (no `next` prereleases).
 #
 # Trusted publisher on npmjs.com, for @codeskop/tracker and
 # @codeskop/tracker-react: GitHub Actions, Codeskop-io / web-sdk, workflow
@@ -17,10 +13,9 @@ name: Release (production)
 on:
   push:
     tags: ["v*"]
-    branches: [development]
 
 concurrency:
-  group: publish-${{ github.ref }}
+  group: release-production
   cancel-in-progress: false
 
 permissions:
@@ -29,7 +24,7 @@ permissions:
 
 jobs:
   release:
-    name: Gate, then publish ('latest' on a tag, 'next' on development)
+    name: Gate, verify version, publish to 'latest', tag GitHub Release
     runs-on: ubuntu-latest
     steps:
       # `on: push: tags` checks out the tagged commit — the release is built
@@ -106,7 +101,6 @@ jobs:
       # from the tag is expected in that model and only warned about, not
       # failed.
       - name: Verify tag matches package.json version
-        if: startsWith(github.ref, 'refs/tags/')
         run: |
           tag="${GITHUB_REF_NAME#v}"
           core_version="$(node -p "require('./package.json').version")"
@@ -133,47 +127,13 @@ jobs:
           fi
           echo "Tag v$tag matches package.json and SDK_VERSION."
 
-      # Computed here, not read from a prior step's mutated package.json —
-      # the version bump below happens in this same job, after every gate has
-      # already passed against the *real* package.json version.
-      - name: Compute prerelease version
-        if: github.ref == 'refs/heads/development'
-        id: version
-        run: |
-          base="$(node -p "require('./package.json').version")"
-          sha="$(git rev-parse --short HEAD)"
-          version="${base}-dev.${sha}"
-          echo "Computed prerelease version: $version"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
-      # Rewrites just the `version` field in-place in both package.json files
-      # for this publish only — never committed back to `development`.
-      - name: Stamp prerelease version (core + react adapter)
-        if: github.ref == 'refs/heads/development'
-        env:
-          DEV_VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          node -e "
-            const fs = require('fs');
-            for (const p of ['package.json', 'react/package.json']) {
-              const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
-              pkg.version = process.env.DEV_VERSION;
-              fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + '\n');
-            }
-          "
-
-      - name: Choose the npm dist-tag
-        run: |
-          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then echo "DIST_TAG=latest" >> "$GITHUB_ENV"; else echo "DIST_TAG=next" >> "$GITHUB_ENV"; fi
-
       - name: Publish core
-        run: npm publish --tag "$DIST_TAG" --access public --provenance
+        run: npm publish --tag latest --access public --provenance
 
       - name: Publish react adapter
-        run: npm publish --workspace=@codeskop/tracker-react --tag "$DIST_TAG" --access public --provenance
+        run: npm publish --workspace=@codeskop/tracker-react --tag latest --access public --provenance
 
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" --generate-notes --title "$GITHUB_REF_NAME"
